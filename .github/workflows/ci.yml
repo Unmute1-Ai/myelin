@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      PORT: "4173"
+      PORT: "4173"\n      BASE_PATH: "/"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
