@@ -12,6 +12,8 @@ jobs:
   workspace:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PORT: "4173"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
