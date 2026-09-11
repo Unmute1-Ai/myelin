@@ -1,45 +1,31 @@
-# [Project name]
+# Myelin Workspace Notes
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Myelin is the TypeScript API and interface-development workspace for Unmute1AI assistive applications. See [README.md](README.md) for project scope and setup.
 
-## Run & Operate
+## Run and build
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-server run dev` — build and start the API service.
+- `pnpm --filter @workspace/mockup-sandbox run dev` — start the interface sandbox.
+- `pnpm run typecheck` — check libraries and application packages.
+- `pnpm run build` — typecheck and build workspace packages.
+- `DATABASE_URL` — supply the PostgreSQL connection string through the environment.
 
-## Stack
+## Stack and structure
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+Node.js 24, pnpm workspaces, TypeScript 5.9, Express 5, PostgreSQL, Drizzle ORM, Zod, and React/Vite.
 
-## Where things live
+| Location | Responsibility |
+| --- | --- |
+| `artifacts/api-server/` | API implementation |
+| `artifacts/mockup-sandbox/` | UI development |
+| `lib/api-spec/` | API specification and generation |
+| `lib/api-client-react/` | React client package |
+| `lib/api-zod/` | Validation schemas |
+| `lib/db/` | Database schema and access |
+| `scripts/` | Workspace scripts |
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+## Development conventions
 
-## Architecture decisions
+Use pnpm; the root preinstall script rejects other package managers. Keep generated API clients aligned with the API specification. Review database schema changes against a development database before any deployment.
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
-
-## User preferences
-
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+Use synthetic data and keep database credentials outside committed files. The workspace is infrastructure in development; describe new product capabilities only once implemented and validated.
