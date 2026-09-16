@@ -14,6 +14,7 @@ Myelin contains a TypeScript workspace with an Express API server, PostgreSQL/Dr
 | --- | --- |
 | [artifacts/api-server/](artifacts/api-server/) | Express API service |
 | [artifacts/mockup-sandbox/](artifacts/mockup-sandbox/) | React/Vite interface sandbox |
+| [artifacts/u1-neurosignal-v0/](artifacts/u1-neurosignal-v0/) | Local-first EEG + physiology clinician-review research prototype |
 | [lib/api-spec/](lib/api-spec/) | API contract and generation tooling |
 | [lib/api-client-react/](lib/api-client-react/) | React API client package |
 | [lib/api-zod/](lib/api-zod/) | API validation package |
@@ -42,6 +43,8 @@ Use the local address printed by each service. Commands above correspond to chec
 ## Product direction
 
 Myelin can provide infrastructure for assistive experiences such as Neche. That relationship is a development direction, not a claim that Neche's local inference, memory isolation, or disclosure controls are implemented here.
+
+U1 NeuroSignal V0 extends this research direction with synthetic EEG and physiological sensing, a within-person baseline engine, and a clinician-facing review interface. It is a research prototype, not a diagnostic or treatment system.
 
 ## Contributing
 
