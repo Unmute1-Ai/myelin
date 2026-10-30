@@ -27,6 +27,10 @@ if (!basePath) {
   );
 }
 
+// Tutor API dev proxy: the generated client targets `/api/...`, and this dev
+// server forwards it to the api-server. Override the target with TUTOR_API_ORIGIN.
+const apiProxyTarget = process.env.TUTOR_API_ORIGIN ?? "http://127.0.0.1:3000";
+
 export default defineConfig({
   base: basePath,
   plugins: [
@@ -61,6 +65,12 @@ export default defineConfig({
     allowedHosts: true,
     fs: {
       strict: true,
+    },
+    proxy: {
+      "/api": {
+        target: apiProxyTarget,
+        changeOrigin: true,
+      },
     },
   },
   preview: {

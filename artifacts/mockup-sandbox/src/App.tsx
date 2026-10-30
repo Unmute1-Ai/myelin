@@ -1,5 +1,8 @@
 import { useEffect, useState, type ComponentType } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Route, Router, Switch, useRoute } from "wouter";
 
+import PrimerPage from "./pages/primer/PrimerPage";
 import { modules as discoveredModules } from "./.generated/mockup-components";
 
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
@@ -111,36 +114,55 @@ function Gallery() {
           <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">
             {getPreviewExamplePath()}
           </code>
+          , or open the{" "}
+          <a
+            href={`${getBasePath()}/primer`}
+            className="text-gray-600 underline underline-offset-2"
+          >
+            Primer tutor
+          </a>
+          .
         </p>
       </div>
     </div>
   );
 }
 
-function getPreviewPath(): string | null {
-  const basePath = getBasePath();
-  const { pathname } = window.location;
-  const local =
-    basePath && pathname.startsWith(basePath)
-      ? pathname.slice(basePath.length) || "/"
-      : pathname;
-  const match = local.match(/^\/preview\/(.+)$/);
-  return match ? match[1] : null;
+function PreviewRoute() {
+  // `*` is regexparam's typed wildcard and captures the nested component path.
+  const [match, params] = useRoute("/preview/*");
+  if (!match) return null;
+  return (
+    <PreviewRenderer
+      componentPath={params["*"] ?? ""}
+      modules={discoveredModules}
+    />
+  );
 }
 
+function AppRoutes() {
+  return (
+    <Switch>
+      <Route path="/" component={Gallery} />
+      <Route path="/primer" component={PrimerPage} />
+      <Route path="/preview/:path..." component={PreviewRoute} />
+      <Route component={Gallery} />
+    </Switch>
+  );
+}
+
+const queryClient = new QueryClient();
+
 function App() {
-  const previewPath = getPreviewPath();
-
-  if (previewPath) {
-    return (
-      <PreviewRenderer
-        componentPath={previewPath}
-        modules={discoveredModules}
-      />
-    );
-  }
-
-  return <Gallery />;
+  // The app is served under BASE_PATH when one is configured; wouter must
+  // strip it before matching, or /primer behind a subpath never matches.
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Router base={getBasePath()}>
+        <AppRoutes />
+      </Router>
+    </QueryClientProvider>
+  );
 }
 
 export default App;
