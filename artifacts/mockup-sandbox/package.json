@@ -3,6 +3,11 @@
   "version": "2.0.0",
   "type": "module",
   "private": true,
+  "dependencies": {
+    "@tanstack/react-query": "catalog:",
+    "@workspace/api-client-react": "workspace:*",
+    "wouter": "catalog:"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
