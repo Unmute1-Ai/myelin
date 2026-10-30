@@ -57,6 +57,9 @@ export default defineConfig({
       prettier: true,
       override: {
         zod: {
+          // Workspace runs zod v3 (catalog); orval's 'auto' detection cannot
+          // parse `catalog:` versions and would otherwise emit zod-v4 output.
+          version: 3,
           coerce: {
             query: ['boolean', 'number', 'string'],
             param: ['boolean', 'number', 'string'],

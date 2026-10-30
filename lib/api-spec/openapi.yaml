@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: tutor
+    description: Primer tutor session operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,119 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /tutor/session:
+    post:
+      operationId: createTutorSession
+      tags: [tutor]
+      summary: Create a tutor session
+      description: >-
+        Creates a session-only Primer tutoring session. Sessions live in memory
+        with a ~2h TTL and are never persisted; everything is lost when the
+        session is deleted or expires.
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorSessionCreated"
+  /tutor/turn:
+    post:
+      operationId: sendTutorTurn
+      tags: [tutor]
+      summary: Send a learner turn
+      description: >-
+        Sends the learner's typed input however they like and returns the
+        tutor's reply. Consequential actions are never executed here — a
+        proposed action only becomes a pending confirmation on the session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TutorTurnRequest"
+      responses:
+        "200":
+          description: Tutor reply for the learner turn
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorTurnResponse"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorError"
+        "404":
+          description: Unknown or deleted session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorError"
+  /tutor/confirm:
+    post:
+      operationId: confirmTutorAction
+      tags: [tutor]
+      summary: Confirm or decline a proposed action
+      description: >-
+        Executes the session's pending proposed action exactly once, but only
+        when accepted is true. A pending action is never executed from turn
+        text alone — this endpoint is the only execution path.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TutorConfirmRequest"
+      responses:
+        "200":
+          description: Result of the confirmation (executed or declined)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorConfirmResponse"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorError"
+        "404":
+          description: Unknown or deleted session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorError"
+        "409":
+          description: No pending action to confirm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorError"
+  /tutor/session/{id}:
+    delete:
+      operationId: deleteTutorSession
+      tags: [tutor]
+      summary: Delete a tutor session
+      description: >-
+        Wipes the session immediately. Subsequent turns on the deleted session
+        return 404.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Session wiped
+        "404":
+          description: Unknown or already deleted session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +148,113 @@ components:
           type: string
       required:
         - status
+    TutorProposedAction:
+      type: string
+      enum:
+        - advance_step
+        - mark_mastered
+        - assign_practice
+    TutorProgress:
+      type: object
+      properties:
+        stepIndex:
+          type: integer
+          minimum: 0
+          description: Zero-based index of the step the learner is working on.
+        totalSteps:
+          type: integer
+          minimum: 1
+        lessonComplete:
+          type: boolean
+          description: True once every micro-step has been delivered.
+        mastered:
+          type: boolean
+          description: True once the learner confirmed marking the lesson mastered.
+      required:
+        - stepIndex
+        - totalSteps
+        - lessonComplete
+        - mastered
+    TutorSessionCreated:
+      type: object
+      properties:
+        sessionId:
+          type: string
+      required:
+        - sessionId
+    TutorTurnRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        input:
+          type: string
+          minLength: 1
+          maxLength: 2000
+      required:
+        - sessionId
+        - input
+    TutorTurnResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+          description: Full-detail reply shown on screen.
+        spoken:
+          type: string
+          description: Short spoken version of the reply (speech output only).
+        proposedAction:
+          $ref: "#/components/schemas/TutorProposedAction"
+          description: Action proposed but NOT executed — pending until /tutor/confirm.
+        checkLine:
+          type: string
+          description: One-line check rendered verbatim before the action can happen.
+        progress:
+          $ref: "#/components/schemas/TutorProgress"
+      required:
+        - reply
+        - spoken
+        - progress
+    TutorConfirmRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        accepted:
+          type: boolean
+          description: Only an explicit true executes the pending action.
+      required:
+        - sessionId
+        - accepted
+    TutorConfirmResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+        spoken:
+          type: string
+        progress:
+          $ref: "#/components/schemas/TutorProgress"
+        executed:
+          type: boolean
+          description: True when the pending action was executed; false when declined.
+      required:
+        - reply
+        - spoken
+        - progress
+        - executed
+    TutorError:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+            - invalid_request
+            - session_not_found
+            - no_pending_action
+        message:
+          type: string
+      required:
+        - code
+        - message
 
