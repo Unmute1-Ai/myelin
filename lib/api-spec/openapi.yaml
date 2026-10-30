@@ -76,6 +76,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TutorError"
+        "500":
+          description: Tutor provider is misconfigured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorError"
+        "502":
+          description: Tutor provider failed to reply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutorError"
   /tutor/confirm:
     post:
       operationId: confirmTutorAction
@@ -252,6 +264,7 @@ components:
             - invalid_request
             - session_not_found
             - no_pending_action
+            - provider_error
         message:
           type: string
       required:

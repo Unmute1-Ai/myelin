@@ -78,6 +78,7 @@ export const TutorErrorCode = {
   invalid_request: 'invalid_request',
   session_not_found: 'session_not_found',
   no_pending_action: 'no_pending_action',
+  provider_error: 'provider_error',
 } as const;
 
 export interface TutorError {
