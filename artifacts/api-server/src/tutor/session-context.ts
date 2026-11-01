@@ -28,6 +28,12 @@ export interface SessionContext {
   /** The learner's new input for this turn. */
   readonly input: string;
   readonly position: SessionPosition;
+  /**
+   * The session this turn belongs to — how the adaptive engine resolves the
+   * learner's profile and evidence (spec §6.4). Absent for callers that
+   * predate learner-linked sessions; those get base-provider behavior.
+   */
+  readonly sessionId?: string;
 }
 
 /** Count of re-presentations ("reteach" markers) recorded for one step. */
@@ -65,6 +71,11 @@ export function derivePosition(history: readonly TurnMessage[], lesson: DemoLess
 }
 
 /** Build the provider input for one learner turn. */
-export function buildSessionContext(history: readonly TurnMessage[], lesson: DemoLesson, input: string): SessionContext {
-  return { lesson, history, input, position: derivePosition(history, lesson) };
+export function buildSessionContext(
+  history: readonly TurnMessage[],
+  lesson: DemoLesson,
+  input: string,
+  sessionId?: string,
+): SessionContext {
+  return { lesson, history, input, position: derivePosition(history, lesson), ...(sessionId !== undefined ? { sessionId } : {}) };
 }

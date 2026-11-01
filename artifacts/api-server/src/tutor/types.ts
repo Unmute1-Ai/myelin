@@ -27,6 +27,12 @@ export interface TurnMessage {
   stepId?: string;
   /** What the message did: delivered a step's teaching, or confirmed an advance past one. */
   kind?: TurnMessageKind;
+  /**
+   * The teaching strategy that produced this message (adaptive engine, spec
+   * §6.4). The no-repeat selection rule reads the last tagged message; the
+   * contract's sessionTurns.strategyId persists the same value.
+   */
+  strategyId?: string;
 }
 
 /**
@@ -41,7 +47,13 @@ export type TurnMessageKind = "teach" | "advance" | "reteach";
 export const MASTERED_MARKER = "lesson:mastered";
 
 export type TurnEvent =
-  | { type: "text"; delta: string; stepId?: string; kind?: TurnMessageKind } // full-detail reply (spoken short version carried in done)
+  | {
+      type: "text";
+      delta: string;
+      stepId?: string;
+      kind?: TurnMessageKind;
+      strategyId?: string; // teaching strategy that produced this text (spec §6.4)
+    } // full-detail reply (spoken short version carried in done)
   | { type: "proposed_action"; action: ProposedAction; checkLine: string }
   | { type: "done"; spoken: string }; // short spoken text — full detail is on screen
 
