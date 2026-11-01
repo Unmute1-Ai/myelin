@@ -1,29 +1,67 @@
 /*
- * Mascot slot — documented placeholder, not a blocker (scaffold directive).
+ * Mascot art slot (spec §6.6, usage notes art_4J78bf2H).
  *
- * The approved mascot art (character sheet art_LGiP8cEA and its production
- * variants) ships as project files in a later wave. When it lands:
- *   1. Put the files in `apps/web/public/mascot/`.
- *   2. Render them here (next/image) and delete the placeholder styling.
- *
- * The space this component reserves is sized for the dashboard-card
- * composition so surrounding layouts do not shift when real art arrives.
- * Alt text stays literal: screen readers must never guess at art.
+ * The production art shipped to `apps/web/public/mascot/` — this renders it
+ * via next/image with literal alt text. Usage-constraint compliance lives
+ * here so every consumer inherits it: live text is overlaid by callers
+ * (never baked into art), the full character stays in frame, and the
+ * hearing aid and sneakers are never edited — callers consume the shipped
+ * files as-is.
  */
+import Image from "next/image";
+
+export type MascotVariant = "dashboard" | "welcome" | "progress" | "sessions";
+
+const VARIANTS: Record<MascotVariant, { src: string; alt: string; width: number; height: number }> = {
+  dashboard: {
+    src: "/mascot/mascot-light-dashboard.png",
+    alt: "PRIMER mascot: an illustrated learner with curly brown hair, round gold glasses, and a behind-the-ear hearing aid, waving in front of a soft lavender background.",
+    width: 1024,
+    height: 1024,
+  },
+  welcome: {
+    src: "/mascot/empty-welcome.png",
+    alt: "PRIMER mascot holding an empty speech bubble, ready to start a first conversation.",
+    width: 1152,
+    height: 896,
+  },
+  progress: {
+    src: "/mascot/empty-progress.png",
+    alt: "PRIMER mascot beside an empty chart, waiting for your first progress to record.",
+    width: 1152,
+    height: 896,
+  },
+  sessions: {
+    src: "/mascot/empty-sessions.png",
+    alt: "PRIMER mascot beside an empty chat window, waiting for your first tutoring session.",
+    width: 1152,
+    height: 896,
+  },
+};
+
 export function MascotSlot({
-  label = "PRIMER mascot — illustration arrives in a later wave",
+  variant = "dashboard",
   className = "",
+  imageClassName = "",
+  priority = false,
 }: {
-  label?: string;
+  variant?: MascotVariant;
   className?: string;
+  imageClassName?: string;
+  priority?: boolean;
 }) {
+  const art = VARIANTS[variant];
   return (
-    <div
-      role="img"
-      aria-label={label}
-      className={`flex min-h-40 items-center justify-center rounded-card border border-dashed border-line bg-lavender-soft p-6 text-center text-sm font-semibold text-ink-soft ${className}`}
-    >
-      {label}
+    <div className={`relative overflow-hidden rounded-card ${className}`}>
+      <Image
+        src={art.src}
+        alt={art.alt}
+        width={art.width}
+        height={art.height}
+        priority={priority}
+        className={`h-auto w-full object-cover ${imageClassName}`}
+        sizes="(max-width: 768px) 100vw, 480px"
+      />
     </div>
   );
 }

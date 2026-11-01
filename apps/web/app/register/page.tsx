@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Button, Card, Field } from "@/components/ui";
+import { register, ApiError } from "@/lib/api-client";
 import {
   fieldErrors,
   registerRoleLabels,
@@ -13,17 +15,20 @@ import {
 import type { RegisterRole } from "@/lib/validation";
 
 /*
- * Registration shell — client-side validation only. The auth API lands in a
- * later wave; a valid submit says so instead of pretending to create an
- * account. Role choice is required — the platform's roles carry different
- * permissions and consent rules.
+ * Registration — validates locally (the UI mirror), then calls
+ * POST /auth/register through the typed client. A duplicate email says so
+ * (the API's 409) and points to sign-in; the student dashboard is the
+ * landing surface after account creation. Role choice is required — the
+ * platform's roles carry different permissions and consent rules.
  */
 export default function RegisterPage() {
+  const router = useRouter();
   const [role, setRole] = useState<RegisterRole | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const parsed = registerSchema.safeParse({
@@ -40,9 +45,28 @@ export default function RegisterPage() {
     }
 
     setErrors({});
-    setNotice(
-      "Looks good — account creation is not wired up yet. The auth API lands in a later wave.",
-    );
+    setNotice(null);
+    setSubmitting(true);
+    try {
+      await register({
+        email: parsed.data.email,
+        password: parsed.data.password,
+        displayName: parsed.data.name,
+        role: parsed.data.role,
+      });
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        setNotice("That email already has an account — sign in instead.");
+      } else if (error instanceof ApiError) {
+        setNotice(error.message);
+      } else {
+        setNotice("Can't reach PRIMER right now. Check your connection.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -136,7 +160,9 @@ export default function RegisterPage() {
             autoComplete="new-password"
             error={errors.confirmPassword}
           />
-          <Button type="submit">Create account</Button>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "Creating your account…" : "Create account"}
+          </Button>
         </form>
         {notice ? (
           <p
