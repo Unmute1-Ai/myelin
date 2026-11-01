@@ -751,6 +751,69 @@ export const ListEducatorStudentsResponse = zod.object({
 
 
 /**
+ * The authenticated user's accessibility settings (spec §6.8), created with product defaults for the Deaf/HoH-first audience — captions on, TTS off. No diagnosis gate exists; any user sets any preference.
+ * @summary Get the caller's accessibility preferences
+ */
+export const getAccessibilityPrefsResponseBreakIntervalMinutesMax = 240;
+
+
+
+export const GetAccessibilityPrefsResponse = zod.object({
+  "id": zod.string().uuid(),
+  "userId": zod.string().uuid(),
+  "ttsEnabled": zod.boolean(),
+  "captionsEnabled": zod.boolean(),
+  "highContrast": zod.boolean(),
+  "textSize": zod.enum(['small', 'medium', 'large', 'xlarge']),
+  "reducedMotion": zod.boolean(),
+  "aacInputEnabled": zod.boolean(),
+  "allowBreaks": zod.boolean(),
+  "breakIntervalMinutes": zod.number().int().min(1).max(getAccessibilityPrefsResponseBreakIntervalMinutesMax),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('Per-user accessibility settings (spec §6.8) — no diagnosis gate; any user sets any preference. Keyboard navigation and screen-reader labels are always-on platform behavior, not preferences.')
+
+
+/**
+ * Partial update applied app-wide (spec §6.8). Break interval must stay within 1–240 minutes (mirrors the DB check).
+ * @summary Update the caller's accessibility preferences
+ */
+export const updateAccessibilityPrefsBodyBreakIntervalMinutesMax = 240;
+
+
+
+export const UpdateAccessibilityPrefsBody = zod.object({
+  "ttsEnabled": zod.boolean().optional(),
+  "captionsEnabled": zod.boolean().optional(),
+  "highContrast": zod.boolean().optional(),
+  "textSize": zod.enum(['small', 'medium', 'large', 'xlarge']).optional(),
+  "reducedMotion": zod.boolean().optional(),
+  "aacInputEnabled": zod.boolean().optional(),
+  "allowBreaks": zod.boolean().optional(),
+  "breakIntervalMinutes": zod.number().int().min(1).max(updateAccessibilityPrefsBodyBreakIntervalMinutesMax).optional()
+})
+
+export const updateAccessibilityPrefsResponseBreakIntervalMinutesMax = 240;
+
+
+
+export const UpdateAccessibilityPrefsResponse = zod.object({
+  "id": zod.string().uuid(),
+  "userId": zod.string().uuid(),
+  "ttsEnabled": zod.boolean(),
+  "captionsEnabled": zod.boolean(),
+  "highContrast": zod.boolean(),
+  "textSize": zod.enum(['small', 'medium', 'large', 'xlarge']),
+  "reducedMotion": zod.boolean(),
+  "aacInputEnabled": zod.boolean(),
+  "allowBreaks": zod.boolean(),
+  "breakIntervalMinutes": zod.number().int().min(1).max(updateAccessibilityPrefsResponseBreakIntervalMinutesMax),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('Per-user accessibility settings (spec §6.8) — no diagnosis gate; any user sets any preference. Keyboard navigation and screen-reader labels are always-on platform behavior, not preferences.')
+
+
+/**
  * The parent dashboard roster (spec §6.9): every guardian link the caller owns, resolved to the student's minimal identity, with the link's current status and whether the consent trail currently grants dashboard access. A pending or revoked link is listed — honestly — but grants nothing.
  * @summary The caller's linked students
  */
@@ -862,65 +925,222 @@ export const ListAtHomeActivitiesResponse = zod.object({
 
 
 /**
- * The authenticated user's accessibility settings (spec §6.8), created with product defaults for the Deaf/HoH-first audience — captions on, TTS off. No diagnosis gate exists; any user sets any preference.
- * @summary Get the caller's accessibility preferences
+ * The authenticated educator's links to students with their status and the student's basic identity (spec §6.10). Admins may list all links to action grant/revoke requests. A pending or revoked link grants no access to learning data.
+ * @summary List the caller's educator links
  */
-export const getAccessibilityPrefsResponseBreakIntervalMinutesMax = 240;
-
-
-
-export const GetAccessibilityPrefsResponse = zod.object({
+export const ListEducatorLinksResponse = zod.object({
+  "links": zod.array(zod.object({
   "id": zod.string().uuid(),
-  "userId": zod.string().uuid(),
-  "ttsEnabled": zod.boolean(),
-  "captionsEnabled": zod.boolean(),
-  "highContrast": zod.boolean(),
-  "textSize": zod.enum(['small', 'medium', 'large', 'xlarge']),
-  "reducedMotion": zod.boolean(),
-  "aacInputEnabled": zod.boolean(),
-  "allowBreaks": zod.boolean(),
-  "breakIntervalMinutes": zod.number().int().min(1).max(getAccessibilityPrefsResponseBreakIntervalMinutesMax),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
   "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}).describe('Per-user accessibility settings (spec §6.8) — no diagnosis gate; any user sets any preference. Keyboard navigation and screen-reader labels are always-on platform behavior, not preferences.')
+  "updatedAt": zod.coerce.date(),
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.')
+}).describe('An educator link plus the linked student\'s basic identity.'))
+})
 
 
 /**
- * Partial update applied app-wide (spec §6.8). Break interval must stay within 1–240 minutes (mirrors the DB check).
- * @summary Update the caller's accessibility preferences
+ * Requests an educator link by the student's account email. The link starts pending and grants nothing until an admin grants it (spec §6.1 — interpretation is not authorization; the recorded grant is the human decision). Idempotent: requesting an existing pair returns that link.
+ * @summary Request an educator link to a student
  */
-export const updateAccessibilityPrefsBodyBreakIntervalMinutesMax = 240;
+export const CreateEducatorLinkBody = zod.object({
+  "studentEmail": zod.string().email()
+}).describe('Request an educator link by the student\'s account email.')
+
+export const CreateEducatorLinkResponse = zod.object({
+  "id": zod.string().uuid(),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.')
+}).describe('An educator link plus the linked student\'s basic identity.')
 
 
-
-export const UpdateAccessibilityPrefsBody = zod.object({
-  "ttsEnabled": zod.boolean().optional(),
-  "captionsEnabled": zod.boolean().optional(),
-  "highContrast": zod.boolean().optional(),
-  "textSize": zod.enum(['small', 'medium', 'large', 'xlarge']).optional(),
-  "reducedMotion": zod.boolean().optional(),
-  "aacInputEnabled": zod.boolean().optional(),
-  "allowBreaks": zod.boolean().optional(),
-  "breakIntervalMinutes": zod.number().int().min(1).max(updateAccessibilityPrefsBodyBreakIntervalMinutesMax).optional()
+/**
+ * The admin's recorded grant — the human authorization decision that gives the educator view_progress, assign_work, and configure_supports on the linked student (spec §6.10). Audited. A revoked link stays revoked; request a new link instead.
+ * @summary Grant an educator link (admin only)
+ */
+export const GrantEducatorLinkParams = zod.object({
+  "linkId": zod.coerce.string().uuid()
 })
 
-export const updateAccessibilityPrefsResponseBreakIntervalMinutesMax = 240;
-
-
-
-export const UpdateAccessibilityPrefsResponse = zod.object({
+export const GrantEducatorLinkResponse = zod.object({
   "id": zod.string().uuid(),
-  "userId": zod.string().uuid(),
-  "ttsEnabled": zod.boolean(),
-  "captionsEnabled": zod.boolean(),
-  "highContrast": zod.boolean(),
-  "textSize": zod.enum(['small', 'medium', 'large', 'xlarge']),
-  "reducedMotion": zod.boolean(),
-  "aacInputEnabled": zod.boolean(),
-  "allowBreaks": zod.boolean(),
-  "breakIntervalMinutes": zod.number().int().min(1).max(updateAccessibilityPrefsResponseBreakIntervalMinutesMax),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.')
+}).describe('An educator link plus the linked student\'s basic identity.')
+
+
+/**
+ * Revokes the link — an admin any link, an educator their own (spec §6.10). Access ends immediately and the decision is audited.
+ * @summary Revoke an educator link
+ */
+export const RevokeEducatorLinkParams = zod.object({
+  "linkId": zod.coerce.string().uuid()
+})
+
+export const RevokeEducatorLinkResponse = zod.object({
+  "id": zod.string().uuid(),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.')
+}).describe('An educator link plus the linked student\'s basic identity.')
+
+
+/**
+ * The authenticated educator's assigned work with each student's display name (spec §6.10).
+ * @summary List the educator's assignments
+ */
+export const listEducatorAssignmentsResponseAssignmentsItemTitleMax = 200;
+
+export const listEducatorAssignmentsResponseAssignmentsItemDetailMax = 2000;
+
+export const listEducatorAssignmentsResponseAssignmentsItemSubjectMax = 120;
+
+
+
+export const ListEducatorAssignmentsResponse = zod.object({
+  "assignments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "title": zod.string().max(listEducatorAssignmentsResponseAssignmentsItemTitleMax),
+  "detail": zod.string().max(listEducatorAssignmentsResponseAssignmentsItemDetailMax).nullable(),
+  "subject": zod.string().max(listEducatorAssignmentsResponseAssignmentsItemSubjectMax).nullable(),
+  "status": zod.enum(['open', 'completed']).describe('An educator assignment\'s lifecycle state (spec §6.10).'),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
-}).describe('Per-user accessibility settings (spec §6.8) — no diagnosis gate; any user sets any preference. Keyboard navigation and screen-reader labels are always-on platform behavior, not preferences.')
+}).describe('Work an educator assigns to a linked student (spec §6.10). Never touches the evidence-governed learning record.'))
+})
+
+
+/**
+ * Creates an assignment for a student the educator holds a granted link to (spec §6.10). The authorization boundary decides scope — assignments never touch the evidence-governed learning record.
+ * @summary Assign work to a linked student
+ */
+export const createEducatorAssignmentBodyTitleMax = 200;
+
+export const createEducatorAssignmentBodyDetailMax = 2000;
+
+export const createEducatorAssignmentBodySubjectMax = 120;
+
+
+
+export const CreateEducatorAssignmentBody = zod.object({
+  "studentId": zod.string().uuid(),
+  "title": zod.string().min(1).max(createEducatorAssignmentBodyTitleMax),
+  "detail": zod.string().max(createEducatorAssignmentBodyDetailMax).optional(),
+  "subject": zod.string().max(createEducatorAssignmentBodySubjectMax).optional()
+}).describe('Create an assignment for a linked student.')
+
+export const createEducatorAssignmentResponseTitleMax = 200;
+
+export const createEducatorAssignmentResponseDetailMax = 2000;
+
+export const createEducatorAssignmentResponseSubjectMax = 120;
+
+
+
+export const CreateEducatorAssignmentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "title": zod.string().max(createEducatorAssignmentResponseTitleMax),
+  "detail": zod.string().max(createEducatorAssignmentResponseDetailMax).nullable(),
+  "subject": zod.string().max(createEducatorAssignmentResponseSubjectMax).nullable(),
+  "status": zod.enum(['open', 'completed']).describe('An educator assignment\'s lifecycle state (spec §6.10).'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('Work an educator assigns to a linked student (spec §6.10). Never touches the evidence-governed learning record.')
+
+
+/**
+ * The student's configured classroom supports (spec §6.10). Reading requires a granted educator link; an unsaved plan reads as empty.
+ * @summary Read a linked student's support plan
+ */
+export const GetEducatorSupportsParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const getEducatorSupportsResponseSupportsItemMax = 120;
+
+export const getEducatorSupportsResponseSupportsMax = 50;
+
+export const getEducatorSupportsResponseNotesMax = 2000;
+
+
+
+export const GetEducatorSupportsResponse = zod.object({
+  "studentId": zod.string().uuid(),
+  "supports": zod.array(zod.string().max(getEducatorSupportsResponseSupportsItemMax)).max(getEducatorSupportsResponseSupportsMax).describe('Non-diagnostic support labels (e.g. \"extra processing time\").'),
+  "notes": zod.string().max(getEducatorSupportsResponseNotesMax).nullable(),
+  "updatedBy": zod.string().uuid().nullable().describe('The human who last changed the plan.'),
+  "updatedAt": zod.coerce.date().nullable()
+}).describe('A student\'s configured classroom supports (spec §6.10). Deliberately non-diagnostic — supports describe what helps, never what a student \"has.\"')
+
+
+/**
+ * Replaces the student's support plan with the submitted non-diagnostic supports and notes; updatedBy records the human behind the change (spec §6.10). Audited.
+ * @summary Configure a linked student's supports
+ */
+export const UpdateEducatorSupportsParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const updateEducatorSupportsBodySupportsItemMax = 120;
+
+export const updateEducatorSupportsBodySupportsMax = 50;
+
+export const updateEducatorSupportsBodyNotesMax = 2000;
+
+
+
+export const UpdateEducatorSupportsBody = zod.object({
+  "supports": zod.array(zod.string().min(1).max(updateEducatorSupportsBodySupportsItemMax)).max(updateEducatorSupportsBodySupportsMax),
+  "notes": zod.string().max(updateEducatorSupportsBodyNotesMax).nullish()
+}).describe('Replace a linked student\'s support plan.')
+
+export const updateEducatorSupportsResponseSupportsItemMax = 120;
+
+export const updateEducatorSupportsResponseSupportsMax = 50;
+
+export const updateEducatorSupportsResponseNotesMax = 2000;
+
+
+
+export const UpdateEducatorSupportsResponse = zod.object({
+  "studentId": zod.string().uuid(),
+  "supports": zod.array(zod.string().max(updateEducatorSupportsResponseSupportsItemMax)).max(updateEducatorSupportsResponseSupportsMax).describe('Non-diagnostic support labels (e.g. \"extra processing time\").'),
+  "notes": zod.string().max(updateEducatorSupportsResponseNotesMax).nullable(),
+  "updatedBy": zod.string().uuid().nullable().describe('The human who last changed the plan.'),
+  "updatedAt": zod.coerce.date().nullable()
+}).describe('A student\'s configured classroom supports (spec §6.10). Deliberately non-diagnostic — supports describe what helps, never what a student \"has.\"')
 
 

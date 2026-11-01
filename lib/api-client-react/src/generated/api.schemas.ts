@@ -842,6 +842,139 @@ export interface AtHomeActivityList {
   activities: AtHomeActivity[];
 }
 
+/**
+ * An educator assignment's lifecycle state (spec §6.10).
+ */
+export type AssignmentStatus = typeof AssignmentStatus[keyof typeof AssignmentStatus];
+
+
+export const AssignmentStatus = {
+  open: 'open',
+  completed: 'completed',
+} as const;
+
+/**
+ * Educator ↔ student relationship (spec §6.10). Access to a student's learning data requires a granted link; the grant is an admin's recorded human decision, never an inference.
+ */
+export interface EducatorLink {
+  id: string;
+  educatorId: string;
+  studentId: string;
+  status: ConsentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * An educator link plus the linked student's basic identity.
+ */
+export interface EducatorLinkDetails {
+  id: string;
+  educatorId: string;
+  studentId: string;
+  status: ConsentStatus;
+  createdAt: string;
+  updatedAt: string;
+  student: StudentRef;
+}
+
+export interface EducatorLinkList {
+  links: EducatorLinkDetails[];
+}
+
+/**
+ * Request an educator link by the student's account email.
+ */
+export interface CreateEducatorLinkRequest {
+  studentEmail: string;
+}
+
+/**
+ * Work an educator assigns to a linked student (spec §6.10). Never touches the evidence-governed learning record.
+ */
+export interface EducatorAssignment {
+  id: string;
+  educatorId: string;
+  studentId: string;
+  /** @maxLength 200 */
+  title: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  detail: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  subject: string | null;
+  status: AssignmentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EducatorAssignmentList {
+  assignments: EducatorAssignment[];
+}
+
+/**
+ * Create an assignment for a linked student.
+ */
+export interface CreateEducatorAssignmentRequest {
+  studentId: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title: string;
+  /** @maxLength 2000 */
+  detail?: string;
+  /** @maxLength 120 */
+  subject?: string;
+}
+
+/**
+ * A student's configured classroom supports (spec §6.10). Deliberately non-diagnostic — supports describe what helps, never what a student "has."
+ */
+export interface EducatorSupports {
+  studentId: string;
+  /**
+     * Non-diagnostic support labels (e.g. "extra processing time").
+     * @maxItems 50
+     * @items.maxLength 120
+     */
+  supports: string[];
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  notes: string | null;
+  /**
+     * The human who last changed the plan.
+     * @nullable
+     */
+  updatedBy: string | null;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+/**
+ * Replace a linked student's support plan.
+ */
+export interface UpdateEducatorSupportsRequest {
+  /**
+     * @maxItems 50
+     * @items.minLength 1
+     * @items.maxLength 120
+     */
+  supports: string[];
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  notes?: string | null;
+}
+
 export type ListProfileEntriesParams = {
 kind?: ProfileEntryKind;
 };
