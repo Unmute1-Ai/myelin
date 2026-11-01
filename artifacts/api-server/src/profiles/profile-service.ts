@@ -1,35 +1,34 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import {
-  assessments,
   learningProfiles,
   profileEntries,
-  sessionTurns,
-  tutoringSessions,
   users,
   type LearningProfile,
   type ProfileEntry,
 } from "@workspace/db/schema";
 import type { CreateProfileEntryData } from "./entry-rules";
+import {
+  // Re-exported for the routes, which map these to contract error codes at
+  // the boundary (ProfileEvidenceError → 400).
+  ProfileEvidenceError,
+  UnlicensedInterpretationError,
+  createGovernedProfileEntry,
+  drizzleGovernanceStore,
+  type GovernedProfileEntryWrite,
+} from "./evidence-governance";
+
+export { ProfileEvidenceError, UnlicensedInterpretationError };
 
 /**
  * The learning-profile service (spec §6.2): persistence and evidence rules
  * behind the profile routes. The authorization boundary (who may read or
  * write) lives in `authorize()` at the route layer; this layer owns what a
- * write may contain — most importantly, that gaps and misconceptions always
- * cite evidence the student actually owns.
+ * write may contain. Every entry write passes through the evidence-governance
+ * flow (spec §6.0): provenance (citations resolve to real, owned records),
+ * pedagogical validation (the conclusion is licensed by the evidence kind),
+ * and replay dedupe (identical proposals return the original entry).
  */
-
-/** A create input cited evidence that does not exist for this student. */
-export class ProfileEvidenceError extends Error {
-  constructor(
-    message: string,
-    readonly field: "sourceAssessmentId" | "sourceTurnId",
-  ) {
-    super(message);
-    this.name = "ProfileEvidenceError";
-  }
-}
 
 /** The path user does not exist or is not a student (contract 404). */
 export class StudentNotFoundError extends Error {
@@ -87,82 +86,21 @@ export async function studentExists(
   return row !== undefined;
 }
 
-/**
- * The no-fabrication gate: every provided evidence reference must exist AND
- * belong to this student. A foreign id fails here even though the FK alone
- * would accept it — evidence is only evidence when it is the learner's own.
- */
-export async function resolveEvidenceOwnership(
-  db: NodePgDatabase,
-  studentId: string,
-  input: Pick<CreateProfileEntryData, "sourceAssessmentId" | "sourceTurnId">,
-): Promise<void> {
-  if (input.sourceAssessmentId !== undefined) {
-    const [owned] = await db
-      .select({ id: assessments.id })
-      .from(assessments)
-      .where(
-        and(
-          eq(assessments.id, input.sourceAssessmentId),
-          eq(assessments.studentId, studentId),
-        ),
-      )
-      .limit(1);
-    if (!owned) {
-      throw new ProfileEvidenceError(
-        "The referenced assessment does not exist for this student.",
-        "sourceAssessmentId",
-      );
-    }
-  }
-
-  if (input.sourceTurnId !== undefined) {
-    // Turn ownership runs through the session — a turn belongs to the student
-    // whose session it sits in.
-    const [owned] = await db
-      .select({ studentId: tutoringSessions.studentId })
-      .from(sessionTurns)
-      .innerJoin(
-        tutoringSessions,
-        eq(sessionTurns.sessionId, tutoringSessions.id),
-      )
-      .where(
-        and(
-          eq(sessionTurns.id, input.sourceTurnId),
-          eq(tutoringSessions.studentId, studentId),
-        ),
-      )
-      .limit(1);
-    if (!owned) {
-      throw new ProfileEvidenceError(
-        "The referenced session turn does not exist for this student.",
-        "sourceTurnId",
-      );
-    }
-  }
-}
-
 export async function createProfileEntry(
   db: NodePgDatabase,
   studentId: string,
   input: CreateProfileEntryData,
-): Promise<ProfileEntry> {
-  const profile = await ensureProfile(db, studentId);
-  await resolveEvidenceOwnership(db, studentId, input);
-
-  const [entry] = await db
-    .insert(profileEntries)
-    .values({
-      profileId: profile.id,
-      kind: input.kind,
-      subject: input.subject,
-      detail: input.detail,
-      whyChanged: input.whyChanged,
-      sourceAssessmentId: input.sourceAssessmentId,
-      sourceTurnId: input.sourceTurnId,
-    })
-    .returning();
-  return entry;
+): Promise<GovernedProfileEntryWrite> {
+  // The governed write path (spec §6.0): provenance → pedagogical license →
+  // replay dedupe → insert. Throws ProfileEvidenceError for an unresolvable
+  // citation and UnlicensedInterpretationError for a conclusion the evidence
+  // kind does not support. `replayed` distinguishes a fresh write from a
+  // deduped replay so callers can respond with the right status.
+  return createGovernedProfileEntry(
+    drizzleGovernanceStore(db),
+    studentId,
+    input,
+  );
 }
 
 /** The explicit-only fields a PATCH may change; only provided keys move. */
@@ -189,6 +127,14 @@ export async function updateProfile(
  * The profile data layer the routes consume — a port in the auth-deps style:
  * drizzle in production, an in-memory fake in route tests. The service
  * functions above are the drizzle implementation's internals.
+ *
+ * Contract for every implementation, including test fakes: `createProfileEntry`
+ * runs the governed write path (spec §6.0) — citations must resolve to records
+ * the student owns (ProfileEvidenceError otherwise), the conclusion must be
+ * licensed by the evidence kind (UnlicensedInterpretationError otherwise), and
+ * an identical replay returns the original entry with `replayed: true` instead
+ * of writing a second row. The pure rules it composes live in
+ * evidence-governance.ts.
  */
 export interface ProfileDataPort {
   /** The path user does not exist or is not a student (contract 404). */
@@ -202,7 +148,7 @@ export interface ProfileDataPort {
   createProfileEntry(
     studentId: string,
     input: CreateProfileEntryData,
-  ): Promise<ProfileEntry>;
+  ): Promise<GovernedProfileEntryWrite>;
   listProfileEntries(
     studentId: string,
     kind?: ProfileEntry["kind"],
@@ -243,7 +189,7 @@ export async function recordStrategyChange(
   if (change.whyChanged.trim().length === 0) {
     throw new Error("a strategy change requires a whyChanged note (spec §6.2)");
   }
-  return createProfileEntry(db, studentId, {
+  const write = await createProfileEntry(db, studentId, {
     kind: "strategy_change",
     detail: change.detail,
     whyChanged: change.whyChanged,
@@ -251,6 +197,7 @@ export async function recordStrategyChange(
     sourceAssessmentId: change.sourceAssessmentId,
     sourceTurnId: change.sourceTurnId,
   });
+  return write.entry;
 }
 
 export async function listProfileEntries(

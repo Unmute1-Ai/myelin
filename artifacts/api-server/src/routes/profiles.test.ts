@@ -8,15 +8,17 @@
 import express, { type Express, type RequestHandler } from "express";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { LearningProfile, ProfileEntry, User } from "@workspace/db/schema";
 import type { GuardianAccessPort } from "../auth/authorize";
 import type { AuditEntry, AuditPort } from "../auth/audit";
 import type { AuthedRequest } from "../auth/middleware";
 import { createProfileRoutes, type ProfileDeps } from "./profiles";
-import type {
-  ProfileDataPort,
-  ProfilePatch,
+import {
+  ProfileEvidenceError,
+  UnlicensedInterpretationError,
+  type ProfileDataPort,
+  type ProfilePatch,
 } from "../profiles/profile-service";
 import { errorHandler } from "../middlewares/errorHandler";
 
@@ -94,11 +96,13 @@ function fakeProfileData() {
         whyChanged: input.whyChanged ?? null,
         sourceAssessmentId: input.sourceAssessmentId ?? null,
         sourceTurnId: input.sourceTurnId ?? null,
+        invalidatedAt: null,
+        invalidatedReason: null,
         createdAt: NOW,
         updatedAt: NOW,
       } as unknown as ProfileEntry;
       entries.push(entry);
-      return entry;
+      return { entry, replayed: false };
     },
     async listProfileEntries(studentId, kind) {
       const profile = profiles.get(studentId);
@@ -458,6 +462,105 @@ describe("profile routes (in-memory fakes, spec §6.2)", () => {
       expect(res.status).toBe(200);
       expect(res.body.entries).toHaveLength(1);
       expect(res.body.entries?.[0]?.kind).toBe("gap");
+    });
+  });
+
+  describe("the governed write path at the boundary (spec §6.0)", () => {
+    // The route's own governance responsibility is the mapping: a governed
+    // port rejection must surface as 400 invalid_request (never a 500), and
+    // a replayed proposal must return the original entry — not 201. The
+    // governed logic itself is proven against real storage in
+    // profiles/evidence-governance.test.ts; here the port is substituted.
+    let originalCreate: ProfileDataPort["createProfileEntry"];
+
+    beforeAll(() => {
+      originalCreate = harness.data.port.createProfileEntry.bind(
+        harness.data.port,
+      );
+    });
+
+    afterEach(() => {
+      harness.data.port.createProfileEntry = originalCreate;
+    });
+
+    beforeEach(() => asStudent());
+
+    it("maps an unlicensed interpretation to 400 without writing or auditing a row", async () => {
+      harness.data.port.createProfileEntry = async () => {
+        throw new UnlicensedInterpretationError(
+          "a misconception requires a repeated error pattern, not a single miss",
+        );
+      };
+
+      const res = await call("POST", `/${STUDENT_ID}/entries`, {
+        kind: "misconception",
+        detail: "The port rejects this conclusion.",
+        sourceAssessmentId: ASSESSMENT_ID,
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("invalid_request");
+      expect(res.body.message).toContain("repeated error pattern");
+      expect(harness.data.entries).toHaveLength(0);
+      expect(
+        harness.auditLog.filter((e) => e.action === "create_profile_entry"),
+      ).toHaveLength(0);
+    });
+
+    it("maps a fabricated citation to 400 the same way", async () => {
+      harness.data.port.createProfileEntry = async () => {
+        throw new ProfileEvidenceError(
+          "The referenced assessment does not exist for this student.",
+          "sourceAssessmentId",
+        );
+      };
+
+      const res = await call("POST", `/${STUDENT_ID}/entries`, {
+        kind: "gap",
+        detail: "Cites a record that resolves to nothing.",
+        sourceAssessmentId: ASSESSMENT_ID,
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("invalid_request");
+    });
+
+    it("returns 200 with the original entry when the port reports a replay", async () => {
+      const original = harness.data.port.ensureProfile(STUDENT_ID);
+      const existingEntry = {
+        id: ENTRY_ID,
+        profileId: (await original).id,
+        kind: "gap",
+        subject: "math",
+        detail: "Regrouping across zeros stalls.",
+        whyChanged: null,
+        sourceAssessmentId: ASSESSMENT_ID,
+        sourceTurnId: null,
+        invalidatedAt: null,
+        invalidatedReason: null,
+        createdAt: NOW,
+        updatedAt: NOW,
+      } as unknown as ProfileEntry;
+      harness.data.port.createProfileEntry = async () => ({
+        entry: existingEntry,
+        replayed: true,
+      });
+
+      const res = await call("POST", `/${STUDENT_ID}/entries`, {
+        kind: "gap",
+        subject: "math",
+        detail: "Regrouping across zeros stalls.",
+        sourceAssessmentId: ASSESSMENT_ID,
+      });
+      expect(res.status).toBe(200);
+      expect(res.body.entries).toBeUndefined();
+      const audited = harness.auditLog.find(
+        (e) => e.action === "create_profile_entry",
+      );
+      expect(audited?.resourceId).toBe(ENTRY_ID);
+      expect(
+        (audited?.authorizationEvidence as { replayed?: boolean }).replayed,
+      ).toBe(true);
+      // The replay wrote no second row through the fake either.
+      expect(harness.data.entries).toHaveLength(0);
     });
   });
 });

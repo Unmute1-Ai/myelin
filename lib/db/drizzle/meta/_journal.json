@@ -8,6 +8,13 @@
       "when": 1793493058703,
       "tag": "0000_handy_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793497963094,
+      "tag": "0001_evidence_governance_lifecycle",
+      "breakpoints": true
     }
   ]
 }

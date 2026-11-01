@@ -26,6 +26,7 @@ import { CreateProfileEntryInput } from "../profiles/entry-rules";
 import {
   drizzleProfileData,
   ProfileEvidenceError,
+  UnlicensedInterpretationError,
   type ProfileDataPort,
   type ProfilePatch,
 } from "../profiles/profile-service";
@@ -196,9 +197,11 @@ export function createProfileRoutes(
   });
 
   // ---------------------------------------------------------------------------
-  // POST /profiles/:studentId/entries — record an entry. Gaps and
-  // misconceptions must cite the student's own assessment evidence
-  // (ProfileEvidenceError → 400); strategy changes must explain themselves.
+  // POST /profiles/:studentId/entries — record an entry. The governed write
+  // path (spec §6.0) rejects unresolvable citations (ProfileEvidenceError →
+  // 400) and conclusions the evidence kind does not license
+  // (UnlicensedInterpretationError → 400); a replayed identical proposal
+  // returns the original entry. Strategy changes must explain themselves.
   // ---------------------------------------------------------------------------
   router.post("/:studentId/entries", async (req: Request, res: Response) => {
     const user = (req as AuthedRequest).user;
@@ -225,10 +228,16 @@ export function createProfileRoutes(
     }
 
     let entry;
+    let replayed: boolean;
     try {
-      entry = await deps.data.createProfileEntry(params.studentId, body);
+      const write = await deps.data.createProfileEntry(params.studentId, body);
+      entry = write.entry;
+      replayed = write.replayed;
     } catch (error) {
-      if (error instanceof ProfileEvidenceError) {
+      if (
+        error instanceof ProfileEvidenceError ||
+        error instanceof UnlicensedInterpretationError
+      ) {
         sendError(res, 400, "invalid_request", error.message);
         return;
       }
@@ -246,10 +255,13 @@ export function createProfileRoutes(
         kind: entry.kind,
         hasEvidence:
           entry.sourceAssessmentId !== null || entry.sourceTurnId !== null,
+        replayed,
       },
     });
 
-    res.status(201).json(CreateProfileEntryResponse.parse(entry));
+    // A deduped replay is not a creation — 200 with the original entry, not
+    // 201; the body is the existing row either way (spec §6.0).
+    res.status(replayed ? 200 : 201).json(CreateProfileEntryResponse.parse(entry));
   });
 
   // ---------------------------------------------------------------------------

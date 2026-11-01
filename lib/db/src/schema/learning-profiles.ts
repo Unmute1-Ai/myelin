@@ -44,6 +44,14 @@ export const learningProfiles = pgTable(
  * explicit-only — this schema has no diagnosis field anywhere, by design.
  * Every strategy change writes a human-readable `whyChanged` note that the UI
  * surfaces back to the learner.
+ *
+ * Evidence-governance lifecycle (spec §6.0):
+ * - Citation FKs are `RESTRICT` — the database itself refuses to hard-delete
+ *   evidence a profile entry still cites, so no entry can be ghosted by a
+ *   silent `SET NULL`.
+ * - `invalidatedAt` / `invalidatedReason` mark entries whose evidence was
+ *   revoked. The entry survives (the record stays auditable) but never
+ *   presents itself as live interpretation again.
  */
 export const profileEntries = pgTable(
   "profile_entries",
@@ -57,11 +65,13 @@ export const profileEntries = pgTable(
     detail: text("detail").notNull(),
     whyChanged: text("why_changed"),
     sourceAssessmentId: uuid("source_assessment_id").references(() => assessments.id, {
-      onDelete: "set null",
+      onDelete: "restrict",
     }),
     sourceTurnId: uuid("source_turn_id").references(() => sessionTurns.id, {
-      onDelete: "set null",
+      onDelete: "restrict",
     }),
+    invalidatedAt: timestamp("invalidated_at", { withTimezone: true }),
+    invalidatedReason: text("invalidated_reason"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

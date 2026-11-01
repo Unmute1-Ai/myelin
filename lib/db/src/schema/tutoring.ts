@@ -43,6 +43,10 @@ export const tutoringSessions = pgTable(
  * One chat turn. `seq` orders turns within a session; `strategyId` records
  * which teaching strategy produced a tutor turn (visual, step_by_step, …) so
  * the no-repeat selection rule has data to reason over.
+ *
+ * `revokedAt` is the turn-evidence tombstone (spec §6.0): the row keeps its
+ * content for audit, but stops licensing new profile interpretations and
+ * invalidates entries already citing it.
  */
 export const sessionTurns = pgTable(
   "session_turns",
@@ -55,6 +59,7 @@ export const sessionTurns = pgTable(
     author: turnAuthor("author").notNull(),
     content: text("content").notNull(),
     strategyId: text("strategy_id"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -70,6 +75,10 @@ export const sessionTurns = pgTable(
  * evidence of memorization/recognition ONLY — comprehension and above require
  * independent application evidence. Enforced twice: by this table's CHECK
  * constraint and by `insertAssessmentSchema` at the application boundary.
+ *
+ * Revocation is the evidence tombstone (spec §6.0): a revoked row keeps its
+ * data but stops licensing new profile interpretations, and entries already
+ * citing it are invalidated.
  */
 export const assessments = pgTable(
   "assessments",
@@ -89,6 +98,7 @@ export const assessments = pgTable(
     level: masteryLevel("level").notNull(),
     evidenceKind: assessmentEvidenceKind("evidence_kind").notNull(),
     evidenceNote: text("evidence_note").notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
