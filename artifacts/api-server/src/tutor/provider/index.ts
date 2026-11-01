@@ -37,3 +37,20 @@ export function createProvider(): TutorProvider {
       throw new UnknownProviderError(`Unknown TUTOR_PROVIDER "${selected}"`);
   }
 }
+
+/**
+ * Every cloud provider whose key is present — dev-only, for the eval harness
+ * (a dev with keys gets cross-provider scenario results; CI with no keys gets
+ * scripted-only). Never a silent default: the API itself is still selected
+ * explicitly via TUTOR_PROVIDER/createProvider.
+ */
+export function createAvailableCloudProviders(): TutorProvider[] {
+  const providers: TutorProvider[] = [];
+  const anthropicKey = process.env["ANTHROPIC_API_KEY"];
+  const openaiKey = process.env["OPENAI_API_KEY"];
+  const geminiKey = process.env["GEMINI_API_KEY"];
+  if (anthropicKey) providers.push(createAnthropicProvider(anthropicKey));
+  if (openaiKey) providers.push(createOpenAIProvider(openaiKey));
+  if (geminiKey) providers.push(createGeminiProvider(geminiKey));
+  return providers;
+}
