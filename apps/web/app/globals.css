@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/*
+ * PRIMER design tokens (platform spec, section 6.7).
+ *
+ * Soft lavender/white backgrounds, deep-purple accents, rounded cards,
+ * friendly typography, and mascot-yellow as the secondary accent. The names
+ * are the brand's, not a framework's: dashboard waves compose bg-background,
+ * bg-lavender, bg-primary, bg-mascot — the whole palette lives here.
+ */
+@theme {
+  /*
+   * Friendly, rounded typography. The brand font is not chosen yet; the stack
+   * prefers locally-installed rounded faces and degrades to the system sans.
+   * This token is the single place to swap in the brand font later.
+   */
+  --font-sans: "Nunito", "Quicksand", ui-rounded, "SF Pro Rounded", "Segoe UI",
+    system-ui, sans-serif;
+
+  /* Backgrounds: soft lavender-tinted whites. */
+  --color-background: #f9f8ff;
+  --color-lavender-soft: #f4f1ff;
+  --color-lavender: #ece7fd;
+
+  /* Primary accent: deep purple. */
+  --color-primary: #5b21b6;
+  --color-primary-strong: #4c1d95;
+  --color-primary-soft: #ede9fe;
+  --color-on-primary: #ffffff;
+
+  /* Secondary accent: mascot yellow. */
+  --color-mascot: #fbbf24;
+  --color-mascot-soft: #fef3c7;
+
+  /* Text. */
+  --color-ink: #2b2440;
+  --color-ink-soft: #6f6a85;
+
+  /* Cards, borders, and inputs. */
+  --color-card: #ffffff;
+  --color-line: #e6e1f5;
+
+  /* Feedback. */
+  --color-danger: #dc2626;
+  --color-success: #15803d;
+
+  /* Focus ring: visible on both lavender and white. */
+  --color-ring: #7c3aed;
+
+  /* Rounded cards. */
+  --radius-card: 1.25rem;
+}
