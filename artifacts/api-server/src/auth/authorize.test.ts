@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { GuardianAccessPort } from "./authorize";
+import type { EducatorAccessPort, GuardianAccessPort } from "./authorize";
 import { authorize, evaluatePolicy, ForbiddenError } from "./authorize";
 import type { AuditEntry, AuditPort } from "./audit";
 import type { User } from "@workspace/db/schema";
@@ -255,5 +255,207 @@ describe("authorize", () => {
         { audit: failingAudit, guardianAccess: guardianPort({}) },
       ),
     ).rejects.toThrow("audit write failed");
+  });
+});
+
+/** In-memory educator port — granted pairs come from a test table. */
+function educatorPort(answers: {
+  accessPairs?: Array<[educatorId: string, studentId: string]>;
+  links?: Record<string, string>; // linkId -> ownerId
+}): EducatorAccessPort {
+  return {
+    async hasActiveEducatorLink(educatorId, studentId) {
+      return (answers.accessPairs ?? []).some(([e, s]) => e === educatorId && s === studentId);
+    },
+    async getEducatorLink(linkId) {
+      const owner = answers.links?.[linkId];
+      return owner ? { id: linkId, educatorId: owner, status: "granted" as const } : undefined;
+    },
+  };
+}
+
+describe("evaluatePolicy — educator linking model (spec §6.10)", () => {
+  it("allows a linked educator to view progress, assign work, and configure supports", () => {
+    for (const action of ["view_progress", "assign_work", "configure_supports"] as const) {
+      const decision = evaluatePolicy(
+        actor(EDUCATOR, "educator"),
+        action,
+        { type: "user_data", userId: STUDENT },
+        { isSelf: false, hasGuardianAccess: false, isLinkOwner: false, hasEducatorAccess: true },
+      );
+      expect(decision, action).toBe("allow");
+    }
+  });
+
+  it("denies an educator without a granted link — the linking model is the gate", () => {
+    for (const action of ["view_progress", "assign_work", "configure_supports"] as const) {
+      const decision = evaluatePolicy(
+        actor(EDUCATOR, "educator"),
+        action,
+        { type: "user_data", userId: STUDENT },
+        { isSelf: false, hasGuardianAccess: false, isLinkOwner: false, hasEducatorAccess: false },
+      );
+      expect(decision, action).toBe("deny");
+    }
+  });
+
+  it("denies a linked educator's edit_profile, export_data, and start_session — the authorization layer cannot be overridden", () => {
+    for (const action of ["edit_profile", "export_data", "start_session"] as const) {
+      const decision = evaluatePolicy(
+        actor(EDUCATOR, "educator"),
+        action,
+        { type: "user_data", userId: STUDENT },
+        { isSelf: false, hasGuardianAccess: false, isLinkOwner: false, hasEducatorAccess: true },
+      );
+      expect(decision, action).toBe("deny");
+    }
+  });
+
+  it("denies an admin reading child data or assigning work — link approval is not a license over children", () => {
+    for (const action of ["view_progress", "assign_work", "configure_supports"] as const) {
+      const decision = evaluatePolicy(
+        actor(OTHER, "admin"),
+        action,
+        { type: "user_data", userId: STUDENT },
+        { isSelf: false, hasGuardianAccess: false, isLinkOwner: false },
+      );
+      expect(decision, action).toBe("deny");
+    }
+  });
+
+  it("allows an admin to manage any educator link, the owner only their own", () => {
+    const admin = evaluatePolicy(
+      actor(OTHER, "admin"),
+      "manage_educator_link",
+      { type: "educator_link", educatorLinkId: "elink-1" },
+      { isSelf: false, hasGuardianAccess: false, isLinkOwner: false },
+    );
+    expect(admin).toBe("allow");
+
+    const owner = evaluatePolicy(
+      actor(EDUCATOR, "educator"),
+      "manage_educator_link",
+      { type: "educator_link", educatorLinkId: "elink-1" },
+      {
+        isSelf: false,
+        hasGuardianAccess: false,
+        isLinkOwner: false,
+        isEducatorLinkOwner: true,
+      },
+    );
+    expect(owner).toBe("allow");
+
+    const stranger = evaluatePolicy(
+      actor(OTHER, "educator"),
+      "manage_educator_link",
+      { type: "educator_link", educatorLinkId: "elink-1" },
+      {
+        isSelf: false,
+        hasGuardianAccess: false,
+        isLinkOwner: false,
+        isEducatorLinkOwner: false,
+      },
+    );
+    expect(stranger).toBe("deny");
+  });
+
+  it("never lets a parent or student manage an educator link", () => {
+    for (const role of ["parent", "student"] as const) {
+      const decision = evaluatePolicy(
+        actor(PARENT, role),
+        "manage_educator_link",
+        { type: "educator_link", educatorLinkId: "elink-1" },
+        { isSelf: false, hasGuardianAccess: false, isLinkOwner: false },
+      );
+      expect(decision, role).toBe("deny");
+    }
+  });
+});
+
+describe("authorize — educator linking model", () => {
+  it("resolves educator access through the port and writes the audit evidence", async () => {
+    const audit = fakeAudit();
+    await authorize(
+      actor(EDUCATOR, "educator"),
+      "view_progress",
+      { type: "user_data", userId: STUDENT },
+      {
+        audit,
+        guardianAccess: guardianPort({}),
+        educatorAccess: educatorPort({ accessPairs: [[EDUCATOR, STUDENT]] }),
+      },
+    );
+
+    expect(audit.entries).toHaveLength(1);
+    const entry = audit.entries[0]!;
+    expect(entry.decision).toBe("allowed");
+    expect(entry.resourceType).toBe("user_data");
+    expect(entry.resourceId).toBe(STUDENT);
+    expect(entry.authorizationEvidence).toMatchObject({
+      role: "educator",
+      hasEducatorAccess: true,
+    });
+  });
+
+  it("denies a linked educator editing the profile and audits the denial", async () => {
+    const audit = fakeAudit();
+
+    await expect(
+      authorize(
+        actor(EDUCATOR, "educator"),
+        "edit_profile",
+        { type: "user_data", userId: STUDENT },
+        {
+          audit,
+          guardianAccess: guardianPort({}),
+          educatorAccess: educatorPort({ accessPairs: [[EDUCATOR, STUDENT]] }),
+        },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+
+    expect(audit.entries).toHaveLength(1);
+    expect(audit.entries[0]!.decision).toBe("denied");
+    expect(audit.entries[0]!.action).toBe("edit_profile");
+    // The trail records that access existed — the denial is the action, not
+    // the relationship.
+    expect(audit.entries[0]!.authorizationEvidence).toMatchObject({
+      role: "educator",
+      hasEducatorAccess: true,
+    });
+  });
+
+  it("resolves educator-link ownership through the port for manage_educator_link", async () => {
+    const audit = fakeAudit();
+
+    await expect(
+      authorize(
+        actor(OTHER, "educator"),
+        "manage_educator_link",
+        { type: "educator_link", educatorLinkId: "elink-1" },
+        {
+          audit,
+          guardianAccess: guardianPort({}),
+          educatorAccess: educatorPort({ links: { "elink-1": EDUCATOR } }),
+        },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+
+    await authorize(
+      actor(EDUCATOR, "educator"),
+      "manage_educator_link",
+      { type: "educator_link", educatorLinkId: "elink-1" },
+      {
+        audit,
+        guardianAccess: guardianPort({}),
+        educatorAccess: educatorPort({ links: { "elink-1": EDUCATOR } }),
+      },
+    );
+
+    const entries = audit.entries;
+    expect(entries).toHaveLength(2);
+    expect(entries[0]!.decision).toBe("denied");
+    expect(entries[1]!.decision).toBe("allowed");
+    expect(entries[1]!.resourceType).toBe("educator_link");
+    expect(entries[1]!.resourceId).toBe("elink-1");
   });
 });

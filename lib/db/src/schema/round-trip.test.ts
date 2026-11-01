@@ -8,11 +8,17 @@ import {
   assessments,
   auditLog,
   consents,
+  educatorAssignments,
+  educatorLinks,
+  educatorSupports,
   guardianLinks,
   insertAccessibilityPrefsSchema,
   insertAssessmentSchema,
   insertAuditLogSchema,
   insertConsentSchema,
+  insertEducatorAssignmentSchema,
+  insertEducatorLinkSchema,
+  insertEducatorSupportsSchema,
   insertGuardianLinkSchema,
   insertLearningProfileSchema,
   insertProfileEntrySchema,
@@ -28,7 +34,7 @@ import {
   users,
 } from "./index";
 
-/** Spec §5 — exactly these tables, no more, no fewer. */
+/** Spec §5 tables, plus the §6.10 educator linking model. */
 const EXPECTED_TABLES = [
   "users",
   "guardian_links",
@@ -41,6 +47,9 @@ const EXPECTED_TABLES = [
   "progress_events",
   "accessibility_prefs",
   "audit_log",
+  "educator_links",
+  "educator_assignments",
+  "educator_supports",
 ] as const;
 
 const tableExports: Record<string, unknown> = {
@@ -55,6 +64,9 @@ const tableExports: Record<string, unknown> = {
   progressEvents,
   accessibilityPrefs,
   auditLog,
+  educatorLinks,
+  educatorAssignments,
+  educatorSupports,
 };
 
 const tables = Object.values(tableExports).filter(
@@ -249,6 +261,37 @@ function fixtures() {
         authorizationEvidence: { role: "parent", guardianLink: uuid(6) },
       },
     },
+    {
+      table: educatorLinks,
+      parse: insertEducatorLinkSchema,
+      value: {
+        educatorId: uuid(8),
+        studentId: userId,
+        status: "granted" as const,
+      },
+    },
+    {
+      table: educatorAssignments,
+      parse: insertEducatorAssignmentSchema,
+      value: {
+        educatorId: uuid(8),
+        studentId: userId,
+        title: "Counting change worksheet",
+        detail: "Five picture-based problems.",
+        subject: "Money math",
+        status: "open" as const,
+      },
+    },
+    {
+      table: educatorSupports,
+      parse: insertEducatorSupportsSchema,
+      value: {
+        studentId: userId,
+        supports: ["Visual schedules", "Movement breaks"],
+        notes: "Checklist before transitions.",
+        updatedBy: uuid(8),
+      },
+    },
   ];
 }
 
@@ -285,5 +328,7 @@ describe("generated migration carries the schema invariants", () => {
     expect(allSql).toMatch(/accessibility_break_interval_range/);
     expect(allSql).toMatch(/session_turns_session_seq_unique/);
     expect(allSql).toMatch(/guardian_links_parent_student_unique/);
+    expect(allSql).toMatch(/educator_links_not_self/);
+    expect(allSql).toMatch(/educator_links_educator_student_unique/);
   });
 });

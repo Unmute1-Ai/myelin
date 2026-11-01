@@ -74,6 +74,12 @@ export const progressEventKind = pgEnum("progress_event_kind", [
 
 export const auditDecision = pgEnum("audit_decision", ["allowed", "denied"]);
 
+/** An educator assignment's lifecycle: assigned work starts open (spec §6.10). */
+export const assignmentStatus = pgEnum("assignment_status", [
+  "open",
+  "completed",
+]);
+
 export const textSize = pgEnum("text_size", [
   "small",
   "medium",

@@ -23,11 +23,18 @@ import type {
   AccessibilityPrefs,
   AtHomeActivityList,
   Consent,
+  CreateEducatorAssignmentRequest,
+  CreateEducatorLinkRequest,
   CreateGuardianLinkRequest,
   CreateProfileEntryRequest,
   CreateSessionMaterialRequest,
   CreateSessionRequest,
+  EducatorAssignment,
+  EducatorAssignmentList,
   EducatorClassSummary,
+  EducatorLinkDetails,
+  EducatorLinkList,
+  EducatorSupports,
   GuardianLinkDetails,
   GuardianLinkList,
   HealthStatus,
@@ -64,6 +71,7 @@ import type {
   TutorTurnResponse,
   TutoringSession,
   UpdateAccessibilityPrefsRequest,
+  UpdateEducatorSupportsRequest,
   UpdateLearningProfileRequest,
   UserResponse
 } from './api.schemas';
@@ -2300,6 +2308,156 @@ export function useListEducatorStudents<TData = Awaited<ReturnType<typeof listEd
 
 
 
+export const getGetAccessibilityPrefsUrl = () => {
+
+
+
+
+  return `/api/me/accessibility`
+}
+
+/**
+ * The authenticated user's accessibility settings (spec §6.8), created with product defaults for the Deaf/HoH-first audience — captions on, TTS off. No diagnosis gate exists; any user sets any preference.
+ * @summary Get the caller's accessibility preferences
+ */
+export const getAccessibilityPrefs = async ( options?: Parameters<typeof customFetch>[1]): Promise<AccessibilityPrefs> => {
+
+  return customFetch<AccessibilityPrefs>(getGetAccessibilityPrefsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAccessibilityPrefsQueryKey = () => {
+    return [
+    `/api/me/accessibility`
+    ] as const;
+    }
+
+
+export const getGetAccessibilityPrefsQueryOptions = <TData = Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError = ErrorType<PlatformError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAccessibilityPrefsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccessibilityPrefs>>> = ({ signal }) => getAccessibilityPrefs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAccessibilityPrefsQueryResult = NonNullable<Awaited<ReturnType<typeof getAccessibilityPrefs>>>
+export type GetAccessibilityPrefsQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary Get the caller's accessibility preferences
+ */
+
+export function useGetAccessibilityPrefs<TData = Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError = ErrorType<PlatformError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAccessibilityPrefsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAccessibilityPrefsUrl = () => {
+
+
+
+
+  return `/api/me/accessibility`
+}
+
+/**
+ * Partial update applied app-wide (spec §6.8). Break interval must stay within 1–240 minutes (mirrors the DB check).
+ * @summary Update the caller's accessibility preferences
+ */
+export const updateAccessibilityPrefs = async (updateAccessibilityPrefsRequest: UpdateAccessibilityPrefsRequest, options?: Parameters<typeof customFetch>[1]): Promise<AccessibilityPrefs> => {
+
+  return customFetch<AccessibilityPrefs>(getUpdateAccessibilityPrefsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateAccessibilityPrefsRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateAccessibilityPrefsMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, TError,{data: BodyType<UpdateAccessibilityPrefsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, TError,{data: BodyType<UpdateAccessibilityPrefsRequest>}, TContext> => {
+
+const mutationKey = ['updateAccessibilityPrefs'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, {data: BodyType<UpdateAccessibilityPrefsRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAccessibilityPrefs(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAccessibilityPrefsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAccessibilityPrefs>>>
+    export type UpdateAccessibilityPrefsMutationBody = BodyType<UpdateAccessibilityPrefsRequest>
+    export type UpdateAccessibilityPrefsMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Update the caller's accessibility preferences
+ */
+export const useUpdateAccessibilityPrefs = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, TError,{data: BodyType<UpdateAccessibilityPrefsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAccessibilityPrefs>>,
+        TError,
+        {data: BodyType<UpdateAccessibilityPrefsRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateAccessibilityPrefsMutationOptions(options));
+    }
+
 export const getListParentStudentsUrl = () => {
 
 
@@ -2624,21 +2782,21 @@ export function useListAtHomeActivities<TData = Awaited<ReturnType<typeof listAt
 
 
 
-export const getGetAccessibilityPrefsUrl = () => {
+export const getListEducatorLinksUrl = () => {
 
 
 
 
-  return `/api/me/accessibility`
+  return `/api/educator/links`
 }
 
 /**
- * The authenticated user's accessibility settings (spec §6.8), created with product defaults for the Deaf/HoH-first audience — captions on, TTS off. No diagnosis gate exists; any user sets any preference.
- * @summary Get the caller's accessibility preferences
+ * The authenticated educator's links to students with their status and the student's basic identity (spec §6.10). Admins may list all links to action grant/revoke requests. A pending or revoked link grants no access to learning data.
+ * @summary List the caller's educator links
  */
-export const getAccessibilityPrefs = async ( options?: Parameters<typeof customFetch>[1]): Promise<AccessibilityPrefs> => {
+export const listEducatorLinks = async ( options?: Parameters<typeof customFetch>[1]): Promise<EducatorLinkList> => {
 
-  return customFetch<AccessibilityPrefs>(getGetAccessibilityPrefsUrl(),
+  return customFetch<EducatorLinkList>(getListEducatorLinksUrl(),
   {
     ...options,
     method: 'GET'
@@ -2651,45 +2809,45 @@ export const getAccessibilityPrefs = async ( options?: Parameters<typeof customF
 
 
 
-export const getGetAccessibilityPrefsQueryKey = () => {
+export const getListEducatorLinksQueryKey = () => {
     return [
-    `/api/me/accessibility`
+    `/api/educator/links`
     ] as const;
     }
 
 
-export const getGetAccessibilityPrefsQueryOptions = <TData = Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError = ErrorType<PlatformError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListEducatorLinksQueryOptions = <TData = Awaited<ReturnType<typeof listEducatorLinks>>, TError = ErrorType<PlatformError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEducatorLinks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetAccessibilityPrefsQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListEducatorLinksQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccessibilityPrefs>>> = ({ signal }) => getAccessibilityPrefs({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEducatorLinks>>> = ({ signal }) => listEducatorLinks({ signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEducatorLinks>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetAccessibilityPrefsQueryResult = NonNullable<Awaited<ReturnType<typeof getAccessibilityPrefs>>>
-export type GetAccessibilityPrefsQueryError = ErrorType<PlatformError>
+export type ListEducatorLinksQueryResult = NonNullable<Awaited<ReturnType<typeof listEducatorLinks>>>
+export type ListEducatorLinksQueryError = ErrorType<PlatformError>
 
 
 /**
- * @summary Get the caller's accessibility preferences
+ * @summary List the caller's educator links
  */
 
-export function useGetAccessibilityPrefs<TData = Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError = ErrorType<PlatformError>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useListEducatorLinks<TData = Awaited<ReturnType<typeof listEducatorLinks>>, TError = ErrorType<PlatformError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEducatorLinks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetAccessibilityPrefsQueryOptions(options)
+  const queryOptions = getListEducatorLinksQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2702,26 +2860,26 @@ export function useGetAccessibilityPrefs<TData = Awaited<ReturnType<typeof getAc
 
 
 
-export const getUpdateAccessibilityPrefsUrl = () => {
+export const getCreateEducatorLinkUrl = () => {
 
 
 
 
-  return `/api/me/accessibility`
+  return `/api/educator/links`
 }
 
 /**
- * Partial update applied app-wide (spec §6.8). Break interval must stay within 1–240 minutes (mirrors the DB check).
- * @summary Update the caller's accessibility preferences
+ * Requests an educator link by the student's account email. The link starts pending and grants nothing until an admin grants it (spec §6.1 — interpretation is not authorization; the recorded grant is the human decision). Idempotent: requesting an existing pair returns that link.
+ * @summary Request an educator link to a student
  */
-export const updateAccessibilityPrefs = async (updateAccessibilityPrefsRequest: UpdateAccessibilityPrefsRequest, options?: Parameters<typeof customFetch>[1]): Promise<AccessibilityPrefs> => {
+export const createEducatorLink = async (createEducatorLinkRequest: CreateEducatorLinkRequest, options?: Parameters<typeof customFetch>[1]): Promise<EducatorLinkDetails> => {
 
-  return customFetch<AccessibilityPrefs>(getUpdateAccessibilityPrefsUrl(),
+  return customFetch<EducatorLinkDetails>(getCreateEducatorLinkUrl(),
   {
     ...options,
-    method: 'PATCH',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(updateAccessibilityPrefsRequest)
+    body: JSON.stringify(createEducatorLinkRequest)
   }
 );}
 
@@ -2729,11 +2887,11 @@ export const updateAccessibilityPrefs = async (updateAccessibilityPrefsRequest: 
 
 
 
-export const getUpdateAccessibilityPrefsMutationOptions = <TError = ErrorType<PlatformError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, TError,{data: BodyType<UpdateAccessibilityPrefsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, TError,{data: BodyType<UpdateAccessibilityPrefsRequest>}, TContext> => {
+export const getCreateEducatorLinkMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEducatorLink>>, TError,{data: BodyType<CreateEducatorLinkRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEducatorLink>>, TError,{data: BodyType<CreateEducatorLinkRequest>}, TContext> => {
 
-const mutationKey = ['updateAccessibilityPrefs'];
+const mutationKey = ['createEducatorLink'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -2743,10 +2901,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, {data: BodyType<UpdateAccessibilityPrefsRequest>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEducatorLink>>, {data: BodyType<CreateEducatorLinkRequest>}> = (props) => {
           const {data} = props ?? {};
 
-          return  updateAccessibilityPrefs(data,requestOptions)
+          return  createEducatorLink(data,requestOptions)
         }
 
 
@@ -2756,21 +2914,466 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type UpdateAccessibilityPrefsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAccessibilityPrefs>>>
-    export type UpdateAccessibilityPrefsMutationBody = BodyType<UpdateAccessibilityPrefsRequest>
-    export type UpdateAccessibilityPrefsMutationError = ErrorType<PlatformError>
+    export type CreateEducatorLinkMutationResult = NonNullable<Awaited<ReturnType<typeof createEducatorLink>>>
+    export type CreateEducatorLinkMutationBody = BodyType<CreateEducatorLinkRequest>
+    export type CreateEducatorLinkMutationError = ErrorType<PlatformError>
 
     /**
- * @summary Update the caller's accessibility preferences
+ * @summary Request an educator link to a student
  */
-export const useUpdateAccessibilityPrefs = <TError = ErrorType<PlatformError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, TError,{data: BodyType<UpdateAccessibilityPrefsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useCreateEducatorLink = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEducatorLink>>, TError,{data: BodyType<CreateEducatorLinkRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof updateAccessibilityPrefs>>,
+        Awaited<ReturnType<typeof createEducatorLink>>,
         TError,
-        {data: BodyType<UpdateAccessibilityPrefsRequest>},
+        {data: BodyType<CreateEducatorLinkRequest>},
         TContext
       > => {
-      return useMutation(getUpdateAccessibilityPrefsMutationOptions(options));
+      return useMutation(getCreateEducatorLinkMutationOptions(options));
+    }
+
+export const getGrantEducatorLinkUrl = (linkId: string,) => {
+
+
+
+
+  return `/api/educator/links/${linkId}/grant`
+}
+
+/**
+ * The admin's recorded grant — the human authorization decision that gives the educator view_progress, assign_work, and configure_supports on the linked student (spec §6.10). Audited. A revoked link stays revoked; request a new link instead.
+ * @summary Grant an educator link (admin only)
+ */
+export const grantEducatorLink = async (linkId: string, options?: Parameters<typeof customFetch>[1]): Promise<EducatorLinkDetails> => {
+
+  return customFetch<EducatorLinkDetails>(getGrantEducatorLinkUrl(linkId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getGrantEducatorLinkMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof grantEducatorLink>>, TError,{linkId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof grantEducatorLink>>, TError,{linkId: string}, TContext> => {
+
+const mutationKey = ['grantEducatorLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof grantEducatorLink>>, {linkId: string}> = (props) => {
+          const {linkId} = props ?? {};
+
+          return  grantEducatorLink(linkId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GrantEducatorLinkMutationResult = NonNullable<Awaited<ReturnType<typeof grantEducatorLink>>>
+
+    export type GrantEducatorLinkMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Grant an educator link (admin only)
+ */
+export const useGrantEducatorLink = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof grantEducatorLink>>, TError,{linkId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof grantEducatorLink>>,
+        TError,
+        {linkId: string},
+        TContext
+      > => {
+      return useMutation(getGrantEducatorLinkMutationOptions(options));
+    }
+
+export const getRevokeEducatorLinkUrl = (linkId: string,) => {
+
+
+
+
+  return `/api/educator/links/${linkId}/revoke`
+}
+
+/**
+ * Revokes the link — an admin any link, an educator their own (spec §6.10). Access ends immediately and the decision is audited.
+ * @summary Revoke an educator link
+ */
+export const revokeEducatorLink = async (linkId: string, options?: Parameters<typeof customFetch>[1]): Promise<EducatorLinkDetails> => {
+
+  return customFetch<EducatorLinkDetails>(getRevokeEducatorLinkUrl(linkId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeEducatorLinkMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeEducatorLink>>, TError,{linkId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeEducatorLink>>, TError,{linkId: string}, TContext> => {
+
+const mutationKey = ['revokeEducatorLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeEducatorLink>>, {linkId: string}> = (props) => {
+          const {linkId} = props ?? {};
+
+          return  revokeEducatorLink(linkId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeEducatorLinkMutationResult = NonNullable<Awaited<ReturnType<typeof revokeEducatorLink>>>
+
+    export type RevokeEducatorLinkMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Revoke an educator link
+ */
+export const useRevokeEducatorLink = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeEducatorLink>>, TError,{linkId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeEducatorLink>>,
+        TError,
+        {linkId: string},
+        TContext
+      > => {
+      return useMutation(getRevokeEducatorLinkMutationOptions(options));
+    }
+
+export const getListEducatorAssignmentsUrl = () => {
+
+
+
+
+  return `/api/educator/assignments`
+}
+
+/**
+ * The authenticated educator's assigned work with each student's display name (spec §6.10).
+ * @summary List the educator's assignments
+ */
+export const listEducatorAssignments = async ( options?: Parameters<typeof customFetch>[1]): Promise<EducatorAssignmentList> => {
+
+  return customFetch<EducatorAssignmentList>(getListEducatorAssignmentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEducatorAssignmentsQueryKey = () => {
+    return [
+    `/api/educator/assignments`
+    ] as const;
+    }
+
+
+export const getListEducatorAssignmentsQueryOptions = <TData = Awaited<ReturnType<typeof listEducatorAssignments>>, TError = ErrorType<PlatformError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEducatorAssignments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEducatorAssignmentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEducatorAssignments>>> = ({ signal }) => listEducatorAssignments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEducatorAssignments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEducatorAssignmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listEducatorAssignments>>>
+export type ListEducatorAssignmentsQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary List the educator's assignments
+ */
+
+export function useListEducatorAssignments<TData = Awaited<ReturnType<typeof listEducatorAssignments>>, TError = ErrorType<PlatformError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEducatorAssignments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEducatorAssignmentsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateEducatorAssignmentUrl = () => {
+
+
+
+
+  return `/api/educator/assignments`
+}
+
+/**
+ * Creates an assignment for a student the educator holds a granted link to (spec §6.10). The authorization boundary decides scope — assignments never touch the evidence-governed learning record.
+ * @summary Assign work to a linked student
+ */
+export const createEducatorAssignment = async (createEducatorAssignmentRequest: CreateEducatorAssignmentRequest, options?: Parameters<typeof customFetch>[1]): Promise<EducatorAssignment> => {
+
+  return customFetch<EducatorAssignment>(getCreateEducatorAssignmentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createEducatorAssignmentRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateEducatorAssignmentMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEducatorAssignment>>, TError,{data: BodyType<CreateEducatorAssignmentRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createEducatorAssignment>>, TError,{data: BodyType<CreateEducatorAssignmentRequest>}, TContext> => {
+
+const mutationKey = ['createEducatorAssignment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createEducatorAssignment>>, {data: BodyType<CreateEducatorAssignmentRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createEducatorAssignment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateEducatorAssignmentMutationResult = NonNullable<Awaited<ReturnType<typeof createEducatorAssignment>>>
+    export type CreateEducatorAssignmentMutationBody = BodyType<CreateEducatorAssignmentRequest>
+    export type CreateEducatorAssignmentMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Assign work to a linked student
+ */
+export const useCreateEducatorAssignment = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createEducatorAssignment>>, TError,{data: BodyType<CreateEducatorAssignmentRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createEducatorAssignment>>,
+        TError,
+        {data: BodyType<CreateEducatorAssignmentRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateEducatorAssignmentMutationOptions(options));
+    }
+
+export const getGetEducatorSupportsUrl = (studentId: string,) => {
+
+
+
+
+  return `/api/educator/students/${studentId}/supports`
+}
+
+/**
+ * The student's configured classroom supports (spec §6.10). Reading requires a granted educator link; an unsaved plan reads as empty.
+ * @summary Read a linked student's support plan
+ */
+export const getEducatorSupports = async (studentId: string, options?: Parameters<typeof customFetch>[1]): Promise<EducatorSupports> => {
+
+  return customFetch<EducatorSupports>(getGetEducatorSupportsUrl(studentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEducatorSupportsQueryKey = (studentId: string,) => {
+    return [
+    `/api/educator/students/${studentId}/supports`
+    ] as const;
+    }
+
+
+export const getGetEducatorSupportsQueryOptions = <TData = Awaited<ReturnType<typeof getEducatorSupports>>, TError = ErrorType<PlatformError>>(studentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEducatorSupports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEducatorSupportsQueryKey(studentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEducatorSupports>>> = ({ signal }) => getEducatorSupports(studentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: studentId !== null && studentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEducatorSupports>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEducatorSupportsQueryResult = NonNullable<Awaited<ReturnType<typeof getEducatorSupports>>>
+export type GetEducatorSupportsQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary Read a linked student's support plan
+ */
+
+export function useGetEducatorSupports<TData = Awaited<ReturnType<typeof getEducatorSupports>>, TError = ErrorType<PlatformError>>(
+ studentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEducatorSupports>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEducatorSupportsQueryOptions(studentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateEducatorSupportsUrl = (studentId: string,) => {
+
+
+
+
+  return `/api/educator/students/${studentId}/supports`
+}
+
+/**
+ * Replaces the student's support plan with the submitted non-diagnostic supports and notes; updatedBy records the human behind the change (spec §6.10). Audited.
+ * @summary Configure a linked student's supports
+ */
+export const updateEducatorSupports = async (studentId: string,
+    updateEducatorSupportsRequest: UpdateEducatorSupportsRequest, options?: Parameters<typeof customFetch>[1]): Promise<EducatorSupports> => {
+
+  return customFetch<EducatorSupports>(getUpdateEducatorSupportsUrl(studentId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateEducatorSupportsRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateEducatorSupportsMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEducatorSupports>>, TError,{studentId: string;data: BodyType<UpdateEducatorSupportsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateEducatorSupports>>, TError,{studentId: string;data: BodyType<UpdateEducatorSupportsRequest>}, TContext> => {
+
+const mutationKey = ['updateEducatorSupports'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateEducatorSupports>>, {studentId: string;data: BodyType<UpdateEducatorSupportsRequest>}> = (props) => {
+          const {studentId,data} = props ?? {};
+
+          return  updateEducatorSupports(studentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateEducatorSupportsMutationResult = NonNullable<Awaited<ReturnType<typeof updateEducatorSupports>>>
+    export type UpdateEducatorSupportsMutationBody = BodyType<UpdateEducatorSupportsRequest>
+    export type UpdateEducatorSupportsMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Configure a linked student's supports
+ */
+export const useUpdateEducatorSupports = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateEducatorSupports>>, TError,{studentId: string;data: BodyType<UpdateEducatorSupportsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateEducatorSupports>>,
+        TError,
+        {studentId: string;data: BodyType<UpdateEducatorSupportsRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateEducatorSupportsMutationOptions(options));
     }
 

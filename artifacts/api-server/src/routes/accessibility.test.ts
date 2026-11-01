@@ -129,6 +129,12 @@ function fakeDeps(): FakeDeps {
       },
       audit,
       guardianAccess,
+      // Educator paths are not exercised here; the deny stub keeps the
+      // fail-closed default visible in the fixture.
+      educatorAccess: {
+        hasActiveEducatorLink: async () => false,
+        getEducatorLink: async () => undefined,
+      },
       data: data.port,
       authenticate,
     },

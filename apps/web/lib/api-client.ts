@@ -10,13 +10,21 @@
 import {
   CreateProfileEntryBody,
   CreateProfileEntryResponse,
+  CreateEducatorAssignmentBody,
+  CreateEducatorAssignmentResponse,
+  CreateEducatorLinkBody,
+  CreateEducatorLinkResponse,
   DeleteProfileEntryParams,
   GetCurrentUserResponse,
+  GetEducatorSupportsResponse,
   GetParentMasteryOverviewParams,
   GetParentMasteryOverviewResponse,
   GetStudentProfileResponse,
   ListAtHomeActivitiesParams,
   ListAtHomeActivitiesResponse,
+  ListEducatorAssignmentsResponse,
+  ListEducatorLinksResponse,
+  ListEducatorStudentsResponse,
   ListParentSessionSummariesQueryParams,
   ListParentSessionSummariesResponse,
   ListParentStudentsResponse,
@@ -28,6 +36,8 @@ import {
   LoginUserResponse,
   RegisterUserBody,
   RegisterUserResponse,
+  UpdateEducatorSupportsBody,
+  UpdateEducatorSupportsResponse,
   UpdateLearningProfileBody,
   UpdateLearningProfileResponse,
   type PlatformError,
@@ -82,7 +92,7 @@ interface RequestOptions {
 }
 
 async function request<S extends { parse(data: unknown): unknown }>(
-  method: "GET" | "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
   path: string,
   responseSchema: S | undefined,
   options: RequestOptions = {},
@@ -243,4 +253,45 @@ export function listAtHomeActivities(studentId: string) {
     ListAtHomeActivitiesResponse,
     { params: { studentId } },
   );
+}
+
+// ── Educator dashboard (spec §6.10) ───────────────────────────────────────
+// Every call targets the educator-scoped routes; the server enforces the
+// granted-link boundary and the authorization layer, the client just types
+// the calls.
+
+export function listEducatorStudents() {
+  return request("GET", "/educator/students", ListEducatorStudentsResponse);
+}
+
+export function listEducatorLinks() {
+  return request("GET", "/educator/links", ListEducatorLinksResponse);
+}
+
+export function createEducatorLink(body: unknown) {
+  const parsed = CreateEducatorLinkBody.parse(body);
+  return request("POST", "/educator/links", CreateEducatorLinkResponse, { body: parsed });
+}
+
+export function listEducatorAssignments() {
+  return request("GET", "/educator/assignments", ListEducatorAssignmentsResponse);
+}
+
+export function createEducatorAssignment(body: unknown) {
+  const parsed = CreateEducatorAssignmentBody.parse(body);
+  return request("POST", "/educator/assignments", CreateEducatorAssignmentResponse, { body: parsed });
+}
+
+export function getEducatorSupports(studentId: string) {
+  return request("GET", "/educator/students/{studentId}/supports", GetEducatorSupportsResponse, {
+    params: { studentId },
+  });
+}
+
+export function updateEducatorSupports(studentId: string, body: unknown) {
+  const parsed = UpdateEducatorSupportsBody.parse(body);
+  return request("PUT", "/educator/students/{studentId}/supports", UpdateEducatorSupportsResponse, {
+    params: { studentId },
+    body: parsed,
+  });
 }

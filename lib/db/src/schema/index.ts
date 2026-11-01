@@ -5,4 +5,5 @@ export * from "./learning-profiles";
 export * from "./progress";
 export * from "./accessibility";
 export * from "./audit";
+export * from "./educator";
 export * from "./relations";

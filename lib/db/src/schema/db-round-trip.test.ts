@@ -8,6 +8,9 @@ import {
   assessments,
   auditLog,
   consents,
+  educatorAssignments,
+  educatorLinks,
+  educatorSupports,
   guardianLinks,
   insertAssessmentSchema,
   learningProfiles,
@@ -29,14 +32,18 @@ const DATABASE_URL = process.env.DATABASE_URL;
 
 /**
  * drizzle-orm wraps driver errors in DrizzleQueryError; the pg error code
- * (23514 check violation, 23505 unique violation, 23503 FK violation — the
- * code PostgreSQL actually reports for a RESTRICT deletion attempt — and
- * 23001 where the standard code surfaces) lives on `cause`. Accepts both
- * shapes so a future unwrapped version still matches.
+ * (23514 check violation, 23505 unique violation, …) lives on `cause`.
+ * Accepts both shapes so a future unwrapped version still matches.
+ *
+ * `codes` accepts alternates because some refusals are environment-dependent
+ * at the SQLSTATE level: a RESTRICT-cited hard delete raises 23001
+ * (restrict_violation) on some servers and 23503 (foreign_key_violation) on
+ * PostgreSQL 17 — the invariant under test is "the delete is refused", not
+ * which code the server picked.
  */
 async function expectPgCode(
   run: () => Promise<unknown>,
-  code: "23514" | "23505" | "23503" | "23001",
+  ...codes: Array<"23514" | "23505" | "23001" | "23503">
 ) {
   try {
     await run();
@@ -45,10 +52,13 @@ async function expectPgCode(
       error as { code?: string } | undefined,
       (error as { cause?: { code?: string } }).cause,
     ];
-    if (candidates.some((candidate) => candidate?.code === code)) return;
+    if (candidates.some((candidate) => candidate && codes.includes(candidate.code as never)))
+      return;
     throw error;
   }
-  throw new Error(`expected PostgreSQL error ${code}, but the statement succeeded`);
+  throw new Error(
+    `expected PostgreSQL error ${codes.join(" or ")}, but the statement succeeded`,
+  );
 }
 
 describe.skipIf(!DATABASE_URL)("db round-trip (requires DATABASE_URL)", () => {
@@ -66,6 +76,9 @@ describe.skipIf(!DATABASE_URL)("db round-trip (requires DATABASE_URL)", () => {
     learningProfiles,
     consents,
     guardianLinks,
+    educatorLinks,
+    educatorAssignments,
+    educatorSupports,
     users,
   ];
 
@@ -253,13 +266,14 @@ describe.skipIf(!DATABASE_URL)("db round-trip (requires DATABASE_URL)", () => {
       .returning();
 
     // Hard delete of cited evidence is refused at the schema level — the
-    // citation can never ghost (PostgreSQL reports the RESTRICT violation
-    // as 23503 foreign_key_violation).
+    // citation can never ghost (restrict-cited deletes raise 23001 on some
+    // servers, 23503 on PostgreSQL 17 — see expectPgCode).
     await expectPgCode(
       () =>
         db!
           .delete(assessments)
           .where(sql`${assessments.id} = ${assessment.id}`),
+      "23001",
       "23503",
     );
 
@@ -314,6 +328,86 @@ describe.skipIf(!DATABASE_URL)("db round-trip (requires DATABASE_URL)", () => {
       const rows = await db!.select().from(table);
       expect(rows, getTableNameOf(table)).toHaveLength(0);
     }
+  });
+
+  it("enforces the educator-link self-link ban at the database level", async () => {
+    const educator = await insertUser("educator@primer.test", "educator");
+    await expectPgCode(
+      () => db!.insert(educatorLinks).values({ educatorId: educator.id, studentId: educator.id }),
+      "23514",
+    );
+  });
+
+  it("round-trips the educator linking model: link → assignment → supports", async () => {
+    const educator = await insertUser("educator@primer.test", "educator");
+    const student = await insertUser("student@primer.test", "student");
+
+    const [link] = await db!
+      .insert(educatorLinks)
+      .values({ educatorId: educator.id, studentId: student.id, status: "granted" })
+      .returning();
+    expect(link.status).toBe("granted");
+
+    // A duplicate (educator, student) pair is refused — one link per pair.
+    await expectPgCode(
+      () =>
+        db!
+          .insert(educatorLinks)
+          .values({ educatorId: educator.id, studentId: student.id }),
+      "23505",
+    );
+
+    const [assignment] = await db!
+      .insert(educatorAssignments)
+      .values({
+        educatorId: educator.id,
+        studentId: student.id,
+        title: "Counting change worksheet",
+        detail: "Five picture-based problems.",
+        subject: "Money math",
+      })
+      .returning();
+    expect(assignment.status).toBe("open");
+
+    const [supports] = await db!
+      .insert(educatorSupports)
+      .values({
+        studentId: student.id,
+        supports: ["Visual schedules", "Movement breaks"],
+        notes: "Checklist before transitions.",
+        updatedBy: educator.id,
+      })
+      .returning();
+    expect(supports.supports).toEqual(["Visual schedules", "Movement breaks"]);
+    expect(supports.updatedBy).toBe(educator.id);
+  });
+
+  it("cascades educator-owned data when its user is deleted", async () => {
+    const educator = await insertUser("educator@primer.test", "educator");
+    const student = await insertUser("student@primer.test", "student");
+    await db!
+      .insert(educatorLinks)
+      .values({ educatorId: educator.id, studentId: student.id, status: "granted" });
+    await db!
+      .insert(educatorAssignments)
+      .values({ educatorId: educator.id, studentId: student.id, title: "Sorting coins" });
+    await db!.insert(educatorSupports).values({
+      studentId: student.id,
+      supports: ["Visual schedules"],
+      updatedBy: educator.id,
+    });
+
+    await db!.delete(users).where(sql`${users.id} = ${educator.id}`);
+
+    expect(await db!.select().from(educatorLinks)).toHaveLength(0);
+    expect(await db!.select().from(educatorAssignments)).toHaveLength(0);
+    // The support plan survives its author — updated_by went null instead.
+    const supportsRows = await db!.select().from(educatorSupports);
+    expect(supportsRows).toHaveLength(1);
+    expect(supportsRows[0].updatedBy).toBeNull();
+
+    await db!.delete(users).where(sql`${users.id} = ${student.id}`);
+    expect(await db!.select().from(educatorSupports)).toHaveLength(0);
   });
 });
 

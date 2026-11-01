@@ -12,11 +12,15 @@ export type AuthAction =
   | "edit_profile"
   | "start_session"
   | "export_data"
-  | "manage_guardian_link";
+  | "manage_guardian_link"
+  | "manage_educator_link"
+  | "assign_work"
+  | "configure_supports";
 
 export type ProtectedResource =
   | { type: "user_data"; userId: string }
-  | { type: "guardian_link"; guardianLinkId: string };
+  | { type: "guardian_link"; guardianLinkId: string }
+  | { type: "educator_link"; educatorLinkId: string };
 
 export interface PolicyFacts {
   /** The actor is accessing their own record. */
@@ -25,14 +29,19 @@ export interface PolicyFacts {
   hasGuardianAccess: boolean;
   /** Actor is the parent who owns this guardian link. */
   isLinkOwner: boolean;
+  /** Actor is an educator holding an admin-granted link to this student. */
+  hasEducatorAccess?: boolean;
+  /** Actor is the educator who owns this educator link. */
+  isEducatorLinkOwner?: boolean;
 }
 
 export type PolicyDecision = "allow" | "deny";
 
 /**
  * Pure decision table — deny is the default; every allow is an explicit rule.
- * Roles with no rule (educator, admin on child data) fall through to deny:
- * no one overrides the authorization layer (spec §6.10).
+ * Roles with no rule fall through to deny: no one overrides the authorization
+ * layer (spec §6.10). Notably, admins have no child-data read rule either —
+ * approving an educator link is not a license to browse learning records.
  */
 export function evaluatePolicy(
   actor: { id: string; role: UserRole },
@@ -44,7 +53,31 @@ export function evaluatePolicy(
     return action === "manage_guardian_link" && facts.isLinkOwner ? "allow" : "deny";
   }
 
+  if (resource.type === "educator_link") {
+    // Granting or revoking an educator link is the human authorization
+    // decision: admins act on any link; an educator only ever manages their
+    // own (e.g. revoking a link they no longer need). Grant routes
+    // additionally gate on the admin role — defense in depth.
+    return action === "manage_educator_link" &&
+      (actor.role === "admin" || facts.isEducatorLinkOwner === true)
+      ? "allow"
+      : "deny";
+  }
+
   if (!facts.isSelf) {
+    // Educators may view a linked student's progress and assign work /
+    // configure supports — with an admin-granted link only, and nothing
+    // more: never edit_profile (the student owns their record), never
+    // export_data, never start_session.
+    if (
+      actor.role === "educator" &&
+      facts.hasEducatorAccess === true &&
+      (action === "view_progress" ||
+        action === "assign_work" ||
+        action === "configure_supports")
+    ) {
+      return "allow";
+    }
     // Parents may view a linked student's progress — with recorded consent
     // only, and nothing more (no edit, no export, no session start).
     return action === "view_progress" && actor.role === "parent" && facts.hasGuardianAccess
@@ -75,9 +108,26 @@ export interface GuardianAccessPort {
   getGuardianLink(linkId: string): Promise<GuardianLinkFacts | undefined>;
 }
 
+export interface EducatorLinkFacts {
+  id: string;
+  educatorId: string;
+  status: "pending" | "granted" | "revoked";
+}
+
+export interface EducatorAccessPort {
+  /** A live admin-granted link between this educator and student. */
+  hasActiveEducatorLink(educatorId: string, studentId: string): Promise<boolean>;
+  getEducatorLink(linkId: string): Promise<EducatorLinkFacts | undefined>;
+}
+
 export interface AuthorizeDeps {
   audit: AuditPort;
   guardianAccess: GuardianAccessPort;
+  /**
+   * Optional so routes on paths that never touch educator links need not
+   * wire it — omitting it fails closed for educators (no port, no access).
+   */
+  educatorAccess?: EducatorAccessPort;
 }
 
 /**
@@ -100,13 +150,26 @@ export async function authorize(
             (await deps.guardianAccess.getGuardianLink(resource.guardianLinkId))?.parentId ===
             actor.id,
         }
-      : {
-          isSelf: actor.id === resource.userId,
-          hasGuardianAccess:
-            actor.role === "parent" &&
-            (await deps.guardianAccess.hasGrantedGuardianAccess(actor.id, resource.userId)),
-          isLinkOwner: false,
-        };
+      : resource.type === "educator_link"
+        ? {
+            isSelf: false,
+            hasGuardianAccess: false,
+            isLinkOwner: false,
+            isEducatorLinkOwner:
+              (await deps.educatorAccess?.getEducatorLink(resource.educatorLinkId))
+                ?.educatorId === actor.id,
+          }
+        : {
+            isSelf: actor.id === resource.userId,
+            hasGuardianAccess:
+              actor.role === "parent" &&
+              (await deps.guardianAccess.hasGrantedGuardianAccess(actor.id, resource.userId)),
+            isLinkOwner: false,
+            hasEducatorAccess:
+              actor.role === "educator" &&
+              (await deps.educatorAccess?.hasActiveEducatorLink(actor.id, resource.userId)) ===
+                true,
+          };
 
   const decision = evaluatePolicy(actor, action, resource, facts);
 
@@ -114,7 +177,12 @@ export async function authorize(
     actorId: actor.id,
     action,
     resourceType: resource.type,
-    resourceId: resource.type === "guardian_link" ? resource.guardianLinkId : resource.userId,
+    resourceId:
+      resource.type === "guardian_link"
+        ? resource.guardianLinkId
+        : resource.type === "educator_link"
+          ? resource.educatorLinkId
+          : resource.userId,
     decision: decision === "allow" ? "allowed" : "denied",
     authorizationEvidence: { role: actor.role, ...facts },
   });
