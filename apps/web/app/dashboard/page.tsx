@@ -10,8 +10,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AccessibilityPrefs, AuthUser, LearningProfile, ProfileEntry, ProgressEvent, TutoringSession } from "@workspace/api-zod";
-import { AccessibilitySettingsCard, type AccessibilityToggle } from "@/components/dashboard/accessibility-settings-card";
+import type { AuthUser, LearningProfile, ProfileEntry, ProgressEvent, TutoringSession } from "@workspace/api-zod";
+import { AccessibilitySettingsCard } from "@/components/dashboard/accessibility-settings-card";
 import { ContinueLearningCard } from "@/components/dashboard/continue-learning-card";
 import { LearningObjectivesCard } from "@/components/dashboard/learning-objectives-card";
 import { MascotWelcomeCard } from "@/components/dashboard/mascot-welcome-card";
@@ -22,17 +22,14 @@ import { RecentSessionsCard } from "@/components/dashboard/recent-sessions-card"
 import { RecommendedActivitiesCard } from "@/components/dashboard/recommended-activities-card";
 import { SubjectListCard } from "@/components/dashboard/subject-list-card";
 import { Button, Card } from "@/components/ui";
-import { applyAccessibilityPrefs } from "@/lib/apply-a11y";
 import {
   createProfileEntry,
   deleteProfileEntry,
-  getAccessibilityPrefs,
   getCurrentUser,
   getStudentProfile,
   listProgressEvents,
   listSessions,
   logout,
-  updateAccessibilityPrefs,
   updateLearningProfile,
   ApiError,
 } from "@/lib/api-client";
@@ -55,7 +52,6 @@ type LoadState =
       entries: ProfileEntry[];
       events: ProgressEvent[];
       sessions: TutoringSession[];
-      prefs: AccessibilityPrefs | null;
     };
 
 export default function DashboardPage() {
@@ -73,12 +69,12 @@ export default function DashboardPage() {
         setState({ phase: "wrong-role", role: user.role });
         return;
       }
-      // The learner's own data, in parallel — profile, timeline, sessions, prefs.
-      const [studentProfile, progress, sessions, prefs] = await Promise.all([
+      // The learner's own data, in parallel — profile, timeline, sessions.
+      // Accessibility preferences load through the app-wide provider, not here.
+      const [studentProfile, progress, sessions] = await Promise.all([
         getStudentProfile(user.id),
         listProgressEvents(user.id),
         listSessions({ limit: 10 }),
-        getAccessibilityPrefs().catch(() => null), // Prefs default server-side; a miss must not blank the dashboard.
       ]);
       setState({
         phase: "ready",
@@ -87,7 +83,6 @@ export default function DashboardPage() {
         entries: studentProfile.entries,
         events: progress.events,
         sessions: sessions.sessions,
-        prefs: prefs ?? null,
       });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -104,13 +99,6 @@ export default function DashboardPage() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
-
-  // Apply a11y prefs app-wide whenever they load or change.
-  useEffect(() => {
-    if (state.phase === "ready" && state.prefs) {
-      applyAccessibilityPrefs(state.prefs);
-    }
-  }, [state]);
 
   // One save path: set saving state, run the call, apply the result, surface
   // any failure — never a silent catch.
@@ -175,45 +163,6 @@ export default function DashboardPage() {
         });
       },
     );
-  }
-
-  function handlePrefsChange(patch: Partial<AccessibilityPrefs>) {
-    if (state.phase !== "ready") return;
-    const snapshot = state;
-    const current = snapshot.prefs;
-    if (!current) return;
-    // Explicit per-field merge: TS spreads a Partial over a full object as
-    // all-optional, which would lie about the shape we send and store.
-    const updated: AccessibilityPrefs = {
-      ...current,
-      ttsEnabled: patch.ttsEnabled ?? current.ttsEnabled,
-      captionsEnabled: patch.captionsEnabled ?? current.captionsEnabled,
-      highContrast: patch.highContrast ?? current.highContrast,
-      textSize: patch.textSize ?? current.textSize,
-      reducedMotion: patch.reducedMotion ?? current.reducedMotion,
-      aacInputEnabled: patch.aacInputEnabled ?? current.aacInputEnabled,
-      allowBreaks: patch.allowBreaks ?? current.allowBreaks,
-      breakIntervalMinutes: patch.breakIntervalMinutes ?? current.breakIntervalMinutes,
-    };
-    applyAccessibilityPrefs(updated); // Optimistic apply — spec: prefs work for the visit even before the write lands.
-    void runSave(
-      () => updateAccessibilityPrefs(updated),
-      (saved) => {
-        setState({ ...snapshot, prefs: saved as AccessibilityPrefs });
-      },
-    );
-  }
-
-  function onToggle(key: AccessibilityToggle["key"], value: boolean) {
-    handlePrefsChange({ [key]: value });
-  }
-
-  function onTextSize(size: AccessibilityPrefs["textSize"]) {
-    handlePrefsChange({ textSize: size });
-  }
-
-  function onBreakInterval(minutes: number) {
-    handlePrefsChange({ breakIntervalMinutes: minutes });
   }
 
   async function handleLogout() {
@@ -333,16 +282,7 @@ export default function DashboardPage() {
           saving={saving}
           savingError={saveError}
         />
-        {state.prefs ? (
-          <AccessibilitySettingsCard
-            prefs={state.prefs}
-            saving={saving}
-            savingError={saveError}
-            onToggle={onToggle}
-            onTextSize={onTextSize}
-            onBreakInterval={onBreakInterval}
-          />
-        ) : null}
+        <AccessibilitySettingsCard />
       </div>
     </main>
   );

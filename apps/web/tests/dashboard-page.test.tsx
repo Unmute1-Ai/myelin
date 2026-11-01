@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { TextSize } from "@workspace/api-zod";
 import DashboardPage from "@/app/dashboard/page";
+import { AccessibilityProvider } from "@/lib/accessibility/AccessibilityProvider";
 import { makeEntry, makePrefs, makeProfile, makeProgressEvent, makeSession, makeUser } from "./fixtures";
 
 // The orchestrator is under test — its API calls are stubbed at the client
@@ -25,8 +25,6 @@ const apiClient = vi.hoisted(() => {
     getStudentProfile: vi.fn(),
     listProgressEvents: vi.fn(),
     listSessions: vi.fn(),
-    getAccessibilityPrefs: vi.fn(),
-    updateAccessibilityPrefs: vi.fn(),
     updateLearningProfile: vi.fn(),
     createProfileEntry: vi.fn(),
     deleteProfileEntry: vi.fn(),
@@ -37,6 +35,25 @@ const apiClient = vi.hoisted(() => {
 });
 
 vi.mock("@/lib/api-client", () => apiClient);
+
+/*
+ * The a11y card inside the page runs on the app-wide AccessibilityProvider
+ * (PR #13's canonical system) — its persistence boundary is mocked here like
+ * the card tests, so the page orchestrator test sees the real provider.
+ */
+const fetchPrefs = vi.fn();
+const savePrefs = vi.fn();
+
+vi.mock("@/lib/accessibility/api", () => ({
+  PrefsSignedOutError: class PrefsSignedOutError extends Error {
+    constructor() {
+      super("not signed in");
+    }
+  },
+  PrefsRequestError: class PrefsRequestError extends Error {},
+  fetchAccessibilityPrefs: () => fetchPrefs(),
+  saveAccessibilityPrefs: (patch: unknown) => savePrefs(patch),
+}));
 
 const push = vi.fn();
 const refresh = vi.fn();
@@ -52,20 +69,32 @@ function stubReady() {
   });
   apiClient.listProgressEvents.mockResolvedValue({ events: [makeProgressEvent()] });
   apiClient.listSessions.mockResolvedValue({ sessions: [makeSession()] });
-  apiClient.getAccessibilityPrefs.mockResolvedValue(makePrefs());
+  fetchPrefs.mockResolvedValue(makePrefs());
+  savePrefs.mockImplementation(async (patch: Record<string, unknown>) => ({
+    ...makePrefs(),
+    ...patch,
+  }));
 }
 
 describe("DashboardPage orchestration", () => {
+  // The real app mounts the provider in the root layout; tests render the
+  // page directly, so the provider is mounted here like the axe suite does.
+  function renderPage() {
+    return render(
+      <AccessibilityProvider>
+        <DashboardPage />
+      </AccessibilityProvider>,
+    );
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
-    document.documentElement.removeAttribute("data-high-contrast");
-    document.documentElement.removeAttribute("data-reduced-motion");
     document.documentElement.style.removeProperty("font-size");
   });
 
   it("renders all ten components with fetched data once loaded", async () => {
     stubReady();
-    render(<DashboardPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Sam" })).toBeInTheDocument();
@@ -86,24 +115,26 @@ describe("DashboardPage orchestration", () => {
     expect(apiClient.listSessions).toHaveBeenCalledWith({ limit: 10 });
   });
 
-  it("applies stored accessibility preferences app-wide on load", async () => {
+  it("applies stored accessibility preferences app-wide on load (canonical PR #13 attributes)", async () => {
     stubReady();
-    render(<DashboardPage />);
+    renderPage();
 
     await waitFor(() => {
-      expect(document.documentElement.getAttribute("data-high-contrast")).toBe("false");
+      expect(document.documentElement.getAttribute("data-contrast")).toBe("normal");
+      expect(document.documentElement.getAttribute("data-text-size")).toBe("medium");
+      expect(document.documentElement.getAttribute("data-motion")).toBe("full");
     });
   });
 
   it("offers sign-in when the session is missing (401)", async () => {
     apiClient.getCurrentUser.mockRejectedValue(new apiClient.ApiError(401, "unauthorized", "nope"));
-    render(<DashboardPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByRole("heading", { name: "Please sign in" })).toBeInTheDocument());
   });
 
   it("tells a non-student role this space is not theirs", async () => {
     apiClient.getCurrentUser.mockResolvedValue({ user: makeUser({ role: "educator", id: "u-ed" }) });
-    render(<DashboardPage />);
+    renderPage();
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "This space is for students" })).toBeInTheDocument(),
     );
@@ -111,7 +142,7 @@ describe("DashboardPage orchestration", () => {
 
   it("shows an honest error with retry when loading fails", async () => {
     apiClient.getCurrentUser.mockRejectedValue(new Error("database exploded"));
-    render(<DashboardPage />);
+    renderPage();
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "We couldn't load your dashboard" })).toBeInTheDocument(),
     );
@@ -119,20 +150,22 @@ describe("DashboardPage orchestration", () => {
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 
-  it("persists an accessibility toggle through the API and applies it immediately", async () => {
+  it("persists an accessibility toggle through the canonical provider (PUT contract)", async () => {
     stubReady();
-    apiClient.updateAccessibilityPrefs.mockResolvedValue(makePrefs({ ttsEnabled: true }));
     const user = userEvent.setup();
-    render(<DashboardPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByRole("switch", { name: /Read aloud/ })).toBeInTheDocument());
 
     await user.click(screen.getByRole("switch", { name: /Read aloud/ }));
-    await waitFor(() => expect(apiClient.updateAccessibilityPrefs).toHaveBeenCalled());
-    const sent = apiClient.updateAccessibilityPrefs.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(sent.ttsEnabled).toBe(true);
-    // Untouched fields keep their stored values — the merge is honest.
-    expect(sent.captionsEnabled).toBe(true);
-    expect(sent.textSize).toBe(TextSize.medium);
+    // The provider sends the field-only patch; the merge lives there (covered
+    // by the provider's own tests) — the page just renders the result.
+    await waitFor(() => expect(savePrefs).toHaveBeenCalledWith({ ttsEnabled: true }));
+    await waitFor(() =>
+      expect(screen.getByRole("switch", { name: /Read aloud/ })).toHaveAttribute(
+        "aria-checked",
+        "true",
+      ),
+    );
   });
 
   it("saves a subject change through the profile API", async () => {
@@ -142,7 +175,7 @@ describe("DashboardPage orchestration", () => {
       entries: [makeEntry()],
     });
     const user = userEvent.setup();
-    render(<DashboardPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByLabelText("Subjects")).toBeInTheDocument());
 
     await user.type(screen.getByLabelText("Subjects"), "Fractions");
@@ -161,12 +194,13 @@ describe("DashboardPage orchestration", () => {
       new apiClient.ApiError(403, "forbidden", "Not allowed"),
     );
     const user = userEvent.setup();
-    render(<DashboardPage />);
+    renderPage();
     await waitFor(() => expect(screen.getByLabelText("Subjects")).toBeInTheDocument());
 
     await user.type(screen.getByLabelText("Subjects"), "Fractions");
     await user.click(screen.getByRole("button", { name: "Add" }));
-    // Both saving cards surface the shared save error honestly.
+    // The profile card surfaces the shared save error honestly (the a11y card
+    // owns its save status through the provider).
     await waitFor(() => {
       const alerts = screen.getAllByRole("alert");
       expect(alerts.length).toBeGreaterThanOrEqual(1);

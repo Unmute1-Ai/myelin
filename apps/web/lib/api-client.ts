@@ -11,7 +11,6 @@ import {
   CreateProfileEntryBody,
   CreateProfileEntryResponse,
   DeleteProfileEntryParams,
-  GetAccessibilityPrefsResponse,
   GetCurrentUserResponse,
   GetStudentProfileResponse,
   ListProgressEventsQueryParams,
@@ -22,8 +21,6 @@ import {
   LoginUserResponse,
   RegisterUserBody,
   RegisterUserResponse,
-  UpdateAccessibilityPrefsBody,
-  UpdateAccessibilityPrefsResponse,
   UpdateLearningProfileBody,
   UpdateLearningProfileResponse,
   type PlatformError,
@@ -194,15 +191,4 @@ export function listSessions(query: SessionsQueryInput = {}) {
   if (parsed.status !== undefined) search.set("status", parsed.status);
   if (parsed.limit !== undefined) search.set("limit", String(parsed.limit));
   return request("GET", "/sessions", ListSessionsResponse, { query: search });
-}
-
-// ── Accessibility preferences (spec §6.8) ─────────────────────────────────
-
-export function getAccessibilityPrefs() {
-  return request("GET", "/me/accessibility", GetAccessibilityPrefsResponse);
-}
-
-export function updateAccessibilityPrefs(body: unknown) {
-  const parsed = UpdateAccessibilityPrefsBody.parse(body);
-  return request("PATCH", "/me/accessibility", UpdateAccessibilityPrefsResponse, { body: parsed });
 }
