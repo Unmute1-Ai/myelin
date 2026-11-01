@@ -22,3 +22,4 @@ export type {
 // can still parse path params for those operations.
 export { ListProfileEntriesParams as ListProfileEntriesParamsSchema } from "./generated/api";
 export { ListSessionTurnsParams as ListSessionTurnsParamsSchema } from "./generated/api";
+export { ListProgressEventsParams as ListProgressEventsParamsSchema } from "./generated/api";
