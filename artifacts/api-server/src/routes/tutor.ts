@@ -19,9 +19,12 @@ import {
   type TutorErrorCode,
 } from "@workspace/api-zod";
 import { DEMO_LESSON } from "../tutor/lesson/money-math";
-import { gradingStep, lessonProgress, nextUndeliveredStep } from "../tutor/progress";
+import { executeConfirmedAction } from "../tutor/confirm";
+import { lessonProgress } from "../tutor/progress";
+import { buildSessionContext } from "../tutor/session-context";
 import { createProvider } from "../tutor/provider";
-import { MASTERED_MARKER, type PendingAction, type TurnMessage } from "../tutor/types";
+import { ProviderRateLimitError } from "../tutor/provider/errors";
+import type { PendingAction, TurnMessage, TutorProvider } from "../tutor/types";
 import { SessionNotFoundError, SessionStore, type TutorSession } from "../tutor/session-store";
 
 type Schema<T> = {
@@ -59,44 +62,8 @@ function getSession(store: SessionStore, sessionId: string, res: Response): Tuto
   }
 }
 
-/** Compose the confirmation outcome. Pending is already cleared by the store. */
-function executePending(store: SessionStore, session: TutorSession, lesson: typeof DEMO_LESSON, pending: PendingAction): { content: string; spoken: string } {
-  if (pending.action === "advance_step") {
-    const current = gradingStep(session, lesson);
-    if (current !== undefined) store.markAdvanced(session, current.id);
-
-    const next = nextUndeliveredStep(session, lesson);
-    if (next !== undefined) {
-      store.markTaught(session, next.id);
-      return {
-        content: `On we go.\n\n${next.teaching}\n\n${next.check.question}`,
-        spoken: `On we go. ${next.spoken}`,
-      };
-    }
-    return {
-      content: "That was the last step — say the word if you'd like me to mark the lesson mastered.",
-      spoken: "That was the last step. Nice work.",
-    };
-  }
-
-  if (pending.action === "mark_mastered") {
-    store.markAdvanced(session, MASTERED_MARKER);
-    return {
-      content: "Marked mastered. Nothing is saved once this session ends — close the tab whenever you like.",
-      spoken: "Marked mastered. Nice work today.",
-    };
-  }
-
-  // assign_practice has no MVP surface — acknowledging is the honest response.
-  return {
-    content: "Practice comes with a later version — nothing to assign just yet.",
-    spoken: "Practice comes with a later version.",
-  };
-}
-
-export function createTutorRoutes(store: SessionStore = new SessionStore()): IRouter {
+export function createTutorRoutes(store: SessionStore = new SessionStore(), provider: TutorProvider = createProvider()): IRouter {
   // Fails loud at boot on an unknown TUTOR_PROVIDER — never silently downgrade.
-  const provider = createProvider();
   const lesson = DEMO_LESSON;
 
   const router: IRouter = Router();
@@ -112,14 +79,17 @@ export function createTutorRoutes(store: SessionStore = new SessionStore()): IRo
     const session = getSession(store, body.sessionId, res);
     if (session === undefined) return;
 
-    // One provider pass per learner turn. Provider output is untrusted: a
+    // One provider pass per learner turn. Context (history, lesson, input,
+    // derived position) is built through the shared session-context module so
+    // every provider sees identical state. Provider output is untrusted: a
     // proposal only lands as pending state here — never executed.
     let reply: TurnMessage | null = null;
     let spoken = "";
     let pending: PendingAction | null = null;
 
     const run = async () => {
-      for await (const event of provider.turn(session.history, lesson, body.input)) {
+      const ctx = buildSessionContext(session.history, lesson, body.input);
+      for await (const event of provider.turn(ctx)) {
         if (event.type === "text") {
           reply = { role: "tutor", content: event.delta, stepId: event.stepId, kind: event.kind };
         } else if (event.type === "done") {
@@ -150,7 +120,14 @@ export function createTutorRoutes(store: SessionStore = new SessionStore()): IRo
         );
       })
       .catch((error: unknown) => {
-        // Error object only — provider failures must never carry learner input.
+        // Typed provider failures map onto contract-safe statuses; the rate
+        // limit gets its own 429 so a dev loop can back off. Error objects
+        // only — provider failures must never carry learner input.
+        if (error instanceof ProviderRateLimitError) {
+          req.log?.warn("tutor provider rate limited");
+          sendError(res, 429, "provider_error", "The tutor is catching its breath. Try again in a moment.");
+          return;
+        }
         req.log?.error({ err: error }, "tutor provider failed");
         sendError(res, 502, "provider_error", "The tutor brain is unavailable right now. Try again in a moment.");
       });
@@ -183,7 +160,7 @@ export function createTutorRoutes(store: SessionStore = new SessionStore()): IRo
       return;
     }
 
-    const reply = executePending(store, session, lesson, executed);
+    const reply = executeConfirmedAction(store, session, lesson, executed);
     res.json(
       ConfirmTutorActionResponse.parse({
         reply: reply.content,
