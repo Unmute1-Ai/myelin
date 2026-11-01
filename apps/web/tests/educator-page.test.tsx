@@ -186,10 +186,10 @@ describe("EducatorPage orchestration", () => {
     await user.click(screen.getByRole("button", { name: "Assign" }));
 
     await waitFor(() => {
+      // Empty optional detail is omitted, not sent as null (contract).
       expect(apiClient.createEducatorAssignment).toHaveBeenCalledWith({
         title: "Making change",
         subject: "Money math",
-        detail: null,
         studentId: "u-student-1",
       });
     });

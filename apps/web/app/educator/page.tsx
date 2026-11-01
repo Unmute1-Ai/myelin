@@ -135,7 +135,9 @@ export default function EducatorPage() {
     await createEducatorAssignment({
       title: input.title,
       subject: input.subject,
-      detail: input.detail,
+      // Contract optionals are undefined-able, not nullable — an empty
+      // detail is omitted, never sent as null.
+      ...(input.detail === null ? {} : { detail: input.detail }),
       studentId: input.studentId,
     });
     // Re-read the list so server-side fields (ids, timestamps, status) win

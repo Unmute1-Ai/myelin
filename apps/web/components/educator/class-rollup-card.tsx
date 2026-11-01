@@ -53,25 +53,27 @@ export function ClassRollupCard({
                   }`}
                 >
                   <td className="py-3 pr-4">
-                    <button
-                      type="button"
-                      onClick={() => onSelect(row.studentId)}
-                      aria-pressed={row.studentId === selectedStudentId}
-                      className="rounded-full px-3 py-1 text-left font-bold text-primary underline-offset-4 hover:bg-primary-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    >
-                      {row.displayName}
-                      {row.needsSupport ? (
-                        <span className="sr-only"> — has recorded gaps, may need support</span>
-                      ) : null}
-                    </button>
-                    {row.needsSupport ? (
-                      <span
-                        aria-hidden="true"
-                        className="ml-2 rounded-full bg-mascot px-2 py-0.5 text-xs font-bold text-ink"
+                    <span className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onSelect(row.studentId)}
+                        aria-pressed={row.studentId === selectedStudentId}
+                        className="rounded-full px-3 py-1 text-left font-bold text-primary underline-offset-4 hover:bg-primary-soft hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
-                        needs support
-                      </span>
-                    ) : null}
+                        {row.displayName}
+                        {row.needsSupport ? (
+                          <span className="sr-only"> — has recorded gaps, may need support</span>
+                        ) : null}
+                      </button>
+                      {row.needsSupport ? (
+                        <span
+                          aria-hidden="true"
+                          className="whitespace-nowrap rounded-full bg-mascot px-2 py-0.5 text-xs font-bold text-ink"
+                        >
+                          needs support
+                        </span>
+                      ) : null}
+                    </span>
                   </td>
                   <td className="py-3 pr-4 font-bold text-ink">{row.gapCount}</td>
                   <td className="py-3 pr-4 text-ink">{row.openAssignments}</td>
