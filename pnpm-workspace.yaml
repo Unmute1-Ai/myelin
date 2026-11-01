@@ -69,6 +69,20 @@ catalog:
 
 autoInstallPeers: false
 
+packageExtensions:
+  # jest-dom's vitest integration (its dist entry and its type
+  # augmentation) imports `vitest`, but it does not declare vitest as a
+  # peer dependency — only @testing-library/dom. With pnpm's hoisting,
+  # that unresolvable-from-context import can bind to a different major
+  # than the one running the tests (e.g. the api-server lane's vitest 5),
+  # leaving the matchers and the `Assertion` augmentation on the wrong
+  # copy — every matcher call fails with "Invalid Chai property".
+  # Declaring the missing peer makes pnpm link jest-dom against the
+  # vitest each consuming package actually depends on.
+  "@testing-library/jest-dom@*":
+    peerDependencies:
+      vitest: "*"
+
 onlyBuiltDependencies:
   - '@swc/core'
   - esbuild
