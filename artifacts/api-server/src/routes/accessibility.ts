@@ -71,6 +71,17 @@ export function createAccessibilityRoutes(
     await authorize(user, "edit_profile", { type: "user_data", userId: user.id }, deps);
 
     const prefs = await deps.data.updatePrefs(user.id, body);
+    // Trail row carries which preference groups moved, never the values —
+    // the settings themselves are the user's private accessibility profile.
+    await deps.audit.record({
+      actorId: user.id,
+      action: "update_accessibility_prefs",
+      resourceType: "accessibility_prefs",
+      resourceId: user.id,
+      decision: "allowed",
+      authorizationEvidence: { role: user.role },
+      metadata: { changedKeys: Object.keys(body) },
+    });
     res.json(UpdateAccessibilityPrefsResponse.parse(prefs));
   });
 

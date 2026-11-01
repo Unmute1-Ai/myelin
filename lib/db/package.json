@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema/index.ts",
-    "./password": "./src/password.ts"
+    "./password": "./src/password.ts",
+    "./ssl": "./src/ssl.ts"
   },
   "scripts": {
     "db:generate": "drizzle-kit generate --config ./drizzle.config.ts",

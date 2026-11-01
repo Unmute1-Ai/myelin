@@ -2,10 +2,14 @@
 // validate through the generated @workspace/api-zod schemas (health-route
 // pattern); errors are typed by the generated TutorError interface.
 //
-// The Sentinel boundary lives here and must not regress: provider proposals
-// become pending confirmations in session state; only POST /confirm with
-// accepted:true executes, exactly once. No shell, files, payments, or
-// settings surface exists anywhere in this file.
+// The Sentinel boundary is the platform-wide module (sentinel/sentinel.ts):
+// provider proposals park here as pending confirmations; only POST /confirm
+// with accepted:true executes, exactly once. This route is the unauthenticated
+// demo sandbox — the MVP's locked privacy decision keeps every byte of its
+// state in memory (nothing persists, no account exists), so there is no actor
+// to attribute and no persistent consequence to audit: the audit port is an
+// explicit no-op. The persistent platform paths (sessions routes) run the
+// same boundary with a real audit trail.
 
 import { Router, type Request, type Response, type IRouter } from "express";
 import {
@@ -24,8 +28,18 @@ import { lessonProgress } from "../tutor/progress";
 import { buildSessionContext } from "../tutor/session-context";
 import { createProvider } from "../tutor/provider";
 import { ProviderRateLimitError } from "../tutor/provider/errors";
-import type { PendingAction, TurnMessage, TutorProvider } from "../tutor/types";
+import type { TurnMessage, TutorProvider } from "../tutor/types";
+import { parkProposal, resolveProposal, type PendingProposal } from "../sentinel/sentinel";
+import type { AuditPort } from "../auth/audit";
 import { SessionNotFoundError, SessionStore, type TutorSession } from "../tutor/session-store";
+
+/**
+ * Demo-only audit port: the in-memory MVP sandbox keeps no account, no
+ * persistent resource, and no trail (the MVP's locked privacy decision), so
+ * there is deliberately nothing to record. Platform paths always bind a real
+ * AuditPort — this port must never be their default.
+ */
+const DEMO_NO_AUDIT: AuditPort = { record: () => Promise.resolve() };
 
 type Schema<T> = {
   safeParse(data: unknown): { success: true; data: T } | { success: false; error: { issues: { path: (string | number | symbol)[] }[] } };
@@ -62,7 +76,11 @@ function getSession(store: SessionStore, sessionId: string, res: Response): Tuto
   }
 }
 
-export function createTutorRoutes(store: SessionStore = new SessionStore(), provider: TutorProvider = createProvider()): IRouter {
+export function createTutorRoutes(
+  store: SessionStore = new SessionStore(),
+  provider: TutorProvider = createProvider(),
+  audit: AuditPort = DEMO_NO_AUDIT,
+): IRouter {
   // Fails loud at boot on an unknown TUTOR_PROVIDER — never silently downgrade.
   const lesson = DEMO_LESSON;
 
@@ -82,10 +100,10 @@ export function createTutorRoutes(store: SessionStore = new SessionStore(), prov
     // One provider pass per learner turn. Context (history, lesson, input,
     // derived position) is built through the shared session-context module so
     // every provider sees identical state. Provider output is untrusted: a
-    // proposal only lands as pending state here — never executed.
+    // proposal only parks through the Sentinel boundary — never executed.
     let reply: TurnMessage | null = null;
     let spoken = "";
-    let pending: PendingAction | null = null;
+    let pending: PendingProposal | null = null;
 
     const run = async () => {
       const ctx = buildSessionContext(session.history, lesson, body.input, session.id);
@@ -101,7 +119,7 @@ export function createTutorRoutes(store: SessionStore = new SessionStore(), prov
     };
 
     run()
-      .then(() => {
+      .then(async () => {
         const executedReply = reply;
         if (executedReply === null) {
           sendError(res, 502, "provider_error", "The tutor brain is unavailable right now. Try again in a moment.");
@@ -116,7 +134,15 @@ export function createTutorRoutes(store: SessionStore = new SessionStore(), prov
           kind: executedReply.kind,
           strategyId: executedReply.strategyId,
         });
-        if (pending !== null) store.setPendingAction(session, pending);
+        if (pending !== null) {
+          await parkProposal(
+            { park: (p) => store.setPendingAction(session, p) },
+            pending,
+            audit,
+            { resourceType: "tutoring_session", resourceId: session.id },
+            null, // demo path: unauthenticated sandbox, no actor identity
+          );
+        }
 
         res.json(
           SendTutorTurnResponse.parse({
@@ -141,15 +167,30 @@ export function createTutorRoutes(store: SessionStore = new SessionStore(), prov
       });
   });
 
-  router.post("/confirm", (req, res) => {
+  router.post("/confirm", async (req, res) => {
     const body = parseBody(req, res, ConfirmTutorActionBody);
     if (body === undefined) return;
     const session = getSession(store, body.sessionId, res);
     if (session === undefined) return;
 
-    // Decline: drop the pending proposal, nothing executes.
-    if (!body.accepted) {
-      store.clearPendingAction(session);
+    // The shared Sentinel resolution: take-and-clear is atomic in-memory;
+    // decline consumes with nothing executed, accept executes exactly once.
+    const outcome = await resolveProposal({
+      consumer: { consume: () => store.takePending(session) },
+      accepted: body.accepted,
+      actorId: null, // demo path: unauthenticated sandbox, no actor identity
+      resource: { resourceType: "tutoring_session", resourceId: session.id },
+      audit,
+      execute: (executed) =>
+        Promise.resolve(executeConfirmedAction(store, session, lesson, executed)),
+    });
+
+    if (outcome.status === "no_pending") {
+      sendError(res, 409, "no_pending_action", "Nothing is waiting on a confirmation right now.");
+      return;
+    }
+
+    if (outcome.status === "declined") {
       res.json(
         ConfirmTutorActionResponse.parse({
           reply: "Okay — we'll stay right here.",
@@ -161,14 +202,7 @@ export function createTutorRoutes(store: SessionStore = new SessionStore(), prov
       return;
     }
 
-    // The only execution path for a consequential action — exactly once.
-    const executed = store.consumeConfirmed(session, body.accepted);
-    if (executed === null) {
-      sendError(res, 409, "no_pending_action", "Nothing is waiting on a confirmation right now.");
-      return;
-    }
-
-    const reply = executeConfirmedAction(store, session, lesson, executed);
+    const reply = outcome.result;
     res.json(
       ConfirmTutorActionResponse.parse({
         reply: reply.content,

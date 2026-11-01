@@ -21,7 +21,9 @@ export interface AuditPort {
   record(entry: AuditEntry): Promise<void>;
 }
 
-export function dbAuditLogger(db: () => NodePgDatabase): AuditPort {
+export function dbAuditLogger<TSchema extends Record<string, unknown>>(
+  db: () => NodePgDatabase<TSchema>,
+): AuditPort {
   return {
     async record(entry) {
       await db().insert(auditLog).values({

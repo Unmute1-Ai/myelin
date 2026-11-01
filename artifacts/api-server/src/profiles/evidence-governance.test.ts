@@ -850,7 +850,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
       ).rejects.toBeInstanceOf(CitedEvidenceError);
       await expectPgCode(
         () => db!.delete(assessments).where(sql`id = ${assessment.id}`),
-        "23001",
+        "23503",
       );
 
       const [stillThere] = await db!
@@ -892,7 +892,7 @@ describe.skipIf(!TEST_DATABASE_URL)(
       // the citation survives, marked invalid, never dangling.
       await expectPgCode(
         () => db!.delete(sessionTurns).where(sql`id = ${turn.id}`),
-        "23001",
+        "23503",
       );
     });
 

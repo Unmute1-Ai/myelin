@@ -82,15 +82,43 @@ export function createAuthRoutes(deps: AuthDeps = defaultAuthDeps()): IRouter {
       : await equalizeTiming(deps, body.password);
     if (!user || !passwordOk) {
       // One response for both failure modes — never reveal which part missed.
+      // The trail records the failure without the attempted email (data
+      // minimization: a login form is not an identity attribute).
+      await deps.audit.record({
+        actorId: null,
+        action: "login_failed",
+        resourceType: "user",
+        resourceId: null,
+        decision: "denied",
+        authorizationEvidence: { reason: "invalid_credentials" },
+      });
       sendError(res, 401, "invalid_credentials", "Email or password didn't match.");
       return;
     }
+
+    await deps.audit.record({
+      actorId: user.id,
+      action: "login",
+      resourceType: "user",
+      resourceId: user.id,
+      decision: "allowed",
+      authorizationEvidence: { role: user.role },
+    });
 
     issueSession(res, deps, user);
     res.json(UserResponse.parse({ user: publicUser(user) }));
   });
 
-  router.post("/logout", (_req, res) => {
+  router.post("/logout", async (req, res) => {
+    const maybeUser = (req as AuthedRequest).user ?? null;
+    await deps.audit.record({
+      actorId: maybeUser?.id ?? null,
+      action: "logout",
+      resourceType: "user",
+      resourceId: maybeUser?.id ?? null,
+      decision: "allowed",
+      authorizationEvidence: {},
+    });
     res.clearCookie(SESSION_COOKIE_NAME, sessionCookieOptions());
     res.status(204).send();
   });

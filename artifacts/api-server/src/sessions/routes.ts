@@ -51,6 +51,7 @@ import { isTextMaterial, MATERIAL_MAX_CHARS } from "./materials";
 import { drizzleSessionData, type SessionDataPort } from "./session-service";
 import { runLearnerTurn, rowsToHistory } from "./turn-pipeline";
 import { planConfirmedExecution } from "./confirm-execution";
+import { parkProposal, resolveProposal } from "../sentinel/sentinel";
 
 /** 4xx/5xx with the platform error shape; never logs payload values. */
 function sendSessionError(res: Response, status: number, code: PlatformErrorCode, message: string): void {
@@ -134,6 +135,14 @@ export function createSessionRoutes(deps: SessionDeps = defaultSessionDeps()): I
 
     await authorize(user, "start_session", { type: "user_data", userId: user.id }, deps);
     const session = await deps.data.createSession(user.id, body.title ?? null);
+    await deps.audit.record({
+      actorId: user.id,
+      action: "create_session",
+      resourceType: "tutoring_session",
+      resourceId: session.id,
+      decision: "allowed",
+      authorizationEvidence: { role: user.role },
+    });
     res.status(201).json(CreateSessionResponse.parse(session));
   });
 
@@ -184,6 +193,14 @@ export function createSessionRoutes(deps: SessionDeps = defaultSessionDeps()): I
     // for a session (a parent may view; nobody else may touch).
     await authorize(user, "start_session", sessionResource(session), deps);
     await deps.data.deleteSession(params.sessionId);
+    await deps.audit.record({
+      actorId: user.id,
+      action: "delete_session",
+      resourceType: "tutoring_session",
+      resourceId: params.sessionId,
+      decision: "allowed",
+      authorizationEvidence: { role: user.role },
+    });
     res.status(204).send();
   });
 
@@ -234,12 +251,22 @@ export function createSessionRoutes(deps: SessionDeps = defaultSessionDeps()): I
       });
 
       // Provider output is untrusted: a proposal parks as pending state on
-      // the session row — it never executes on its own (spec §6.11).
+      // the session row through the platform Sentinel boundary — it never
+      // executes on its own (spec §6.11), and the proposal itself is audited.
       if (proposed !== null) {
-        await deps.data.setPending(params.sessionId, {
-          action: proposed.action,
-          checkLine: proposed.checkLine,
-        });
+        await parkProposal(
+          {
+            park: async (pending) => {
+              // The park port is void-valued; setPending's row return is
+              // meaningless here.
+              await deps.data.setPending(params.sessionId, pending);
+            },
+          },
+          proposed,
+          deps.audit,
+          { resourceType: "tutoring_session", resourceId: params.sessionId },
+          user.id,
+        );
       }
 
       // Recall evidence a correct check answer earns (spec §6.3 cap) — the
@@ -294,24 +321,34 @@ export function createSessionRoutes(deps: SessionDeps = defaultSessionDeps()): I
     }
     await authorize(user, "start_session", sessionResource(session), deps);
 
-    // Atomic consume: the proposal is read and cleared in one statement, so
-    // two confirm calls can never both execute the same action.
-    const pending = await deps.data.consumePending(params.sessionId);
-    if (pending === null) {
+    // The generalized Sentinel resolution: atomic consume, decline drops the
+    // proposal with an audit row, accept executes exactly once with an audit
+    // row. A second confirm finds nothing pending and lands in 409 below.
+    const outcome = await resolveProposal({
+      consumer: { consume: () => deps.data.consumePending(params.sessionId) },
+      accepted: body.accepted,
+      actorId: user.id,
+      resource: { resourceType: "tutoring_session", resourceId: params.sessionId },
+      audit: deps.audit,
+      execute: async (pending) => {
+        // The one execution path for a confirmed consequential action.
+        const rows = await deps.data.listTurns(params.sessionId, 0, SESSION_PAGE);
+        const planned = planConfirmedExecution(DEMO_LESSON, rowsToHistory(rows), pending);
+        const tutorTurns = await deps.data.appendTurns(params.sessionId, {
+          student: null,
+          tutor: planned.turns,
+        });
+        return { planned, tutorTurns };
+      },
+    });
+
+    if (outcome.status === "no_pending") {
       sendSessionError(res, 409, "no_pending_action", "Nothing is waiting on a confirmation right now.");
       return;
     }
 
-    // Decline: the proposal is consumed — nothing executes, nothing stored.
-    if (!body.accepted) {
-      await deps.audit.record({
-        actorId: user.id,
-        action: "tutor_action_declined",
-        resourceType: "tutoring_session",
-        resourceId: params.sessionId,
-        decision: "allowed",
-        authorizationEvidence: { action: pending.action, accepted: false },
-      });
+    // Decline: the proposal was consumed — nothing executes, nothing stored.
+    if (outcome.status === "declined") {
       res.json(
         ConfirmSessionActionResponse.parse({
           executed: false,
@@ -323,29 +360,12 @@ export function createSessionRoutes(deps: SessionDeps = defaultSessionDeps()): I
       return;
     }
 
-    // The one execution path for a confirmed consequential action.
-    const rows = await deps.data.listTurns(params.sessionId, 0, SESSION_PAGE);
-    const planned = planConfirmedExecution(DEMO_LESSON, rowsToHistory(rows), pending);
-    const tutorTurns = await deps.data.appendTurns(params.sessionId, {
-      student: null,
-      tutor: planned.turns,
-    });
-
-    await deps.audit.record({
-      actorId: user.id,
-      action: "tutor_action_confirmed",
-      resourceType: "tutoring_session",
-      resourceId: params.sessionId,
-      decision: "allowed",
-      authorizationEvidence: { action: pending.action, accepted: true, executed: true },
-    });
-
     res.json(
       ConfirmSessionActionResponse.parse({
         executed: true,
-        tutorTurns,
-        reply: planned.reply,
-        spoken: planned.spoken,
+        tutorTurns: outcome.result.tutorTurns,
+        reply: outcome.result.planned.reply,
+        spoken: outcome.result.planned.spoken,
       }),
     );
   });
@@ -385,6 +405,17 @@ export function createSessionRoutes(deps: SessionDeps = defaultSessionDeps()): I
       mimeType: body.mimeType,
       sizeBytes: Buffer.byteLength(body.content, "utf8"),
       contentText: body.content,
+    });
+    // Trail row carries identity and size, never the uploaded content — the
+    // material's text is learner data, not audit evidence.
+    await deps.audit.record({
+      actorId: user.id,
+      action: "upload_material",
+      resourceType: "session_material",
+      resourceId: material.id,
+      decision: "allowed",
+      authorizationEvidence: { role: user.role, sessionId: params.sessionId },
+      metadata: { sizeBytes: material.sizeBytes, mimeType: material.mimeType },
     });
     res.status(201).json(CreateSessionMaterialResponse.parse({ material }));
   });

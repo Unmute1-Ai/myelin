@@ -367,6 +367,9 @@ describe.skipIf(!SESSIONS_TEST_DATABASE_URL)("persistent sessions routes (requir
 
     expect((await auditRows("tutor_action_declined")).length).toBe(1);
     expect((await auditRows("tutor_action_confirmed")).length).toBe(0);
+    // The proposal itself entered the trail — the platform-wide boundary
+    // audits every model-generated proposal, not just human decisions.
+    expect((await auditRows("tutor_action_proposed")).length).toBe(1);
   });
 
   it("executes a confirmed action exactly once across competing confirm calls", async () => {
