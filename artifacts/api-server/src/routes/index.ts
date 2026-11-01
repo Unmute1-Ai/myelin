@@ -3,6 +3,7 @@ import healthRouter from "./health";
 import { createTutorRoutes } from "./tutor";
 import { createAuthRoutes } from "./auth";
 import { createGuardianRoutes } from "./guardian";
+import { createEducatorRoutes } from "./educator";
 import { createProfileRoutes } from "./profiles";
 import { createAccessibilityRoutes } from "./accessibility";
 import { createSessionRoutes } from "../sessions/routes";
@@ -15,6 +16,7 @@ router.use(healthRouter);
 router.use("/tutor", createTutorRoutes());
 router.use("/auth", createAuthRoutes());
 router.use("/guardian", createGuardianRoutes());
+router.use("/educator", createEducatorRoutes());
 router.use("/profiles", createProfileRoutes());
 // Accessibility preferences are served by the canonical PR #13
 // implementation (GET/PUT /me/accessibility); this lane adds only the
