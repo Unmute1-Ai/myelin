@@ -29,6 +29,7 @@ function assessmentRow(overrides: Partial<Assessment> = {}): Assessment {
     level: "recognition",
     evidenceKind: "recall",
     evidenceNote: "recognized the right answer on a practiced problem",
+    revokedAt: null,
     createdAt: new Date(),
     ...overrides,
   };
