@@ -3,7 +3,8 @@ import pg from "pg";
 import { hashPassword, verifyPassword } from "@workspace/db/password";
 import { dbAuditLogger, type AuditPort } from "./audit";
 import { drizzleGuardianAccess } from "./guardian-access";
-import type { GuardianAccessPort } from "./authorize";
+import { drizzleEducatorAccess } from "./educator-access";
+import type { EducatorAccessPort, GuardianAccessPort } from "./authorize";
 import { createSessionCodec, sessionSecretFromEnv, type SessionCodec } from "./session";
 
 export interface PasswordPort {
@@ -22,6 +23,7 @@ export interface AuthDeps {
   codec: SessionCodec;
   audit: AuditPort;
   guardianAccess: GuardianAccessPort;
+  educatorAccess: EducatorAccessPort;
 }
 
 let cachedDb: NodePgDatabase | undefined;
@@ -53,5 +55,6 @@ export function defaultAuthDeps(): AuthDeps {
     codec: createSessionCodec(sessionSecretFromEnv),
     audit: dbAuditLogger(defaultDb),
     guardianAccess: drizzleGuardianAccess(defaultDb),
+    educatorAccess: drizzleEducatorAccess(defaultDb),
   };
 }
