@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "codegen": "orval --config ./orval.config.ts && pnpm -w run typecheck:libs"
+    "codegen": "orval --config ./orval.config.ts && pnpm -w run typecheck:libs",
+    "codegen:check": "orval --config ./orval.config.ts && git diff --exit-code -- ../api-zod/src/generated ../api-client-react/src/generated"
   },
   "devDependencies": {
     "orval": "^8.23.0"

@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import {
   useMutation,
@@ -20,13 +20,39 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccessibilityPrefs,
+  Consent,
+  CreateGuardianLinkRequest,
+  CreateProfileEntryRequest,
+  CreateSessionRequest,
+  EducatorClassSummary,
+  GuardianLinkDetails,
+  GuardianLinkList,
   HealthStatus,
+  LearningProfile,
+  ListProfileEntriesParams,
+  ListProgressEventsParams,
+  ListSessionTurnsParams,
+  ListSessionsParams,
+  PlatformError,
+  PostSessionTurnRequest,
+  ProfileEntry,
+  ProfileEntryList,
+  ProgressEventList,
+  RecordConsentRequest,
+  SessionList,
+  SessionTurnExchange,
+  SessionTurnList,
+  StudentProfile,
   TutorConfirmRequest,
   TutorConfirmResponse,
   TutorError,
   TutorSessionCreated,
   TutorTurnRequest,
-  TutorTurnResponse
+  TutorTurnResponse,
+  TutoringSession,
+  UpdateAccessibilityPrefsRequest,
+  UpdateLearningProfileRequest
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -420,5 +446,1476 @@ export const useDeleteTutorSession = <TError = ErrorType<TutorError>,
         TContext
       > => {
       return useMutation(getDeleteTutorSessionMutationOptions(options));
+    }
+
+export const getGetStudentProfileUrl = (studentId: string,) => {
+
+
+
+
+  return `/api/profiles/${studentId}`
+}
+
+/**
+ * Returns the learning profile with its full transparent entry record (spec §6.2). Accessible by the student (self), a linked parent with granted guardian consent, and an authorized educator; every other caller is denied and audited (spec §6.1, fail-closed).
+ * @summary Get a student's learning profile
+ */
+export const getStudentProfile = async (studentId: string, options?: Parameters<typeof customFetch>[1]): Promise<StudentProfile> => {
+
+  return customFetch<StudentProfile>(getGetStudentProfileUrl(studentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStudentProfileQueryKey = (studentId: string,) => {
+    return [
+    `/api/profiles/${studentId}`
+    ] as const;
+    }
+
+
+export const getGetStudentProfileQueryOptions = <TData = Awaited<ReturnType<typeof getStudentProfile>>, TError = ErrorType<PlatformError>>(studentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudentProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudentProfileQueryKey(studentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudentProfile>>> = ({ signal }) => getStudentProfile(studentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: studentId !== null && studentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudentProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStudentProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getStudentProfile>>>
+export type GetStudentProfileQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary Get a student's learning profile
+ */
+
+export function useGetStudentProfile<TData = Awaited<ReturnType<typeof getStudentProfile>>, TError = ErrorType<PlatformError>>(
+ studentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStudentProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStudentProfileQueryOptions(studentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateLearningProfileUrl = (studentId: string,) => {
+
+
+
+
+  return `/api/profiles/${studentId}`
+}
+
+/**
+ * Updates explicit profile choices — subjects, preferred strategy, pacing (spec §6.2). The student updates their own profile; educators may configure supports within their authorization scope. Explicit preferences only — the API never accepts or infers a disability or diagnosis value.
+ * @summary Update a student's learning profile
+ */
+export const updateLearningProfile = async (studentId: string,
+    updateLearningProfileRequest: UpdateLearningProfileRequest, options?: Parameters<typeof customFetch>[1]): Promise<LearningProfile> => {
+
+  return customFetch<LearningProfile>(getUpdateLearningProfileUrl(studentId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateLearningProfileRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateLearningProfileMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLearningProfile>>, TError,{studentId: string;data: BodyType<UpdateLearningProfileRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateLearningProfile>>, TError,{studentId: string;data: BodyType<UpdateLearningProfileRequest>}, TContext> => {
+
+const mutationKey = ['updateLearningProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateLearningProfile>>, {studentId: string;data: BodyType<UpdateLearningProfileRequest>}> = (props) => {
+          const {studentId,data} = props ?? {};
+
+          return  updateLearningProfile(studentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateLearningProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateLearningProfile>>>
+    export type UpdateLearningProfileMutationBody = BodyType<UpdateLearningProfileRequest>
+    export type UpdateLearningProfileMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Update a student's learning profile
+ */
+export const useUpdateLearningProfile = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateLearningProfile>>, TError,{studentId: string;data: BodyType<UpdateLearningProfileRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateLearningProfile>>,
+        TError,
+        {studentId: string;data: BodyType<UpdateLearningProfileRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateLearningProfileMutationOptions(options));
+    }
+
+export const getListProfileEntriesUrl = (studentId: string,
+    params?: ListProfileEntriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/profiles/${studentId}/entries?${stringifiedParams}` : `/api/profiles/${studentId}/entries`
+}
+
+/**
+ * The transparent learning record — gaps, misconceptions, successful approaches, preferences, and strategy changes (spec §6.2). Entries are written from assessment evidence only; every strategy change carries a human-readable whyChanged note.
+ * @summary List a student's profile entries
+ */
+export const listProfileEntries = async (studentId: string,
+    params?: ListProfileEntriesParams, options?: Parameters<typeof customFetch>[1]): Promise<ProfileEntryList> => {
+
+  return customFetch<ProfileEntryList>(getListProfileEntriesUrl(studentId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProfileEntriesQueryKey = (studentId: string,
+    params?: ListProfileEntriesParams,) => {
+    return [
+    `/api/profiles/${studentId}/entries`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProfileEntriesQueryOptions = <TData = Awaited<ReturnType<typeof listProfileEntries>>, TError = ErrorType<PlatformError>>(studentId: string,
+    params?: ListProfileEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProfileEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProfileEntriesQueryKey(studentId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProfileEntries>>> = ({ signal }) => listProfileEntries(studentId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: studentId !== null && studentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProfileEntries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProfileEntriesQueryResult = NonNullable<Awaited<ReturnType<typeof listProfileEntries>>>
+export type ListProfileEntriesQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary List a student's profile entries
+ */
+
+export function useListProfileEntries<TData = Awaited<ReturnType<typeof listProfileEntries>>, TError = ErrorType<PlatformError>>(
+ studentId: string,
+    params?: ListProfileEntriesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProfileEntries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProfileEntriesQueryOptions(studentId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateProfileEntryUrl = (studentId: string,) => {
+
+
+
+
+  return `/api/profiles/${studentId}/entries`
+}
+
+/**
+ * Adds an entry to the learning record. Gap and misconception entries must reference assessment evidence (sourceAssessmentId or sourceTurnId) — evidence refs, not vibes (spec §6.2). Preference entries are explicit-only and never inferred.
+ * @summary Record a profile entry
+ */
+export const createProfileEntry = async (studentId: string,
+    createProfileEntryRequest: CreateProfileEntryRequest, options?: Parameters<typeof customFetch>[1]): Promise<ProfileEntry> => {
+
+  return customFetch<ProfileEntry>(getCreateProfileEntryUrl(studentId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createProfileEntryRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateProfileEntryMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProfileEntry>>, TError,{studentId: string;data: BodyType<CreateProfileEntryRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProfileEntry>>, TError,{studentId: string;data: BodyType<CreateProfileEntryRequest>}, TContext> => {
+
+const mutationKey = ['createProfileEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProfileEntry>>, {studentId: string;data: BodyType<CreateProfileEntryRequest>}> = (props) => {
+          const {studentId,data} = props ?? {};
+
+          return  createProfileEntry(studentId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProfileEntryMutationResult = NonNullable<Awaited<ReturnType<typeof createProfileEntry>>>
+    export type CreateProfileEntryMutationBody = BodyType<CreateProfileEntryRequest>
+    export type CreateProfileEntryMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Record a profile entry
+ */
+export const useCreateProfileEntry = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProfileEntry>>, TError,{studentId: string;data: BodyType<CreateProfileEntryRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProfileEntry>>,
+        TError,
+        {studentId: string;data: BodyType<CreateProfileEntryRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateProfileEntryMutationOptions(options));
+    }
+
+export const getDeleteProfileEntryUrl = (studentId: string,
+    entryId: string,) => {
+
+
+
+
+  return `/api/profiles/${studentId}/entries/${entryId}`
+}
+
+/**
+ * The student curates their own record (spec §6.2 — the profile is transparent and editable by the student). Evidence rows behind the entry are never deleted.
+ * @summary Remove a profile entry
+ */
+export const deleteProfileEntry = async (studentId: string,
+    entryId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteProfileEntryUrl(studentId,entryId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteProfileEntryMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProfileEntry>>, TError,{studentId: string;entryId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteProfileEntry>>, TError,{studentId: string;entryId: string}, TContext> => {
+
+const mutationKey = ['deleteProfileEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteProfileEntry>>, {studentId: string;entryId: string}> = (props) => {
+          const {studentId,entryId} = props ?? {};
+
+          return  deleteProfileEntry(studentId,entryId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteProfileEntryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteProfileEntry>>>
+
+    export type DeleteProfileEntryMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Remove a profile entry
+ */
+export const useDeleteProfileEntry = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteProfileEntry>>, TError,{studentId: string;entryId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteProfileEntry>>,
+        TError,
+        {studentId: string;entryId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteProfileEntryMutationOptions(options));
+    }
+
+export const getListProgressEventsUrl = (studentId: string,
+    params?: ListProgressEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/progress/${studentId}?${stringifiedParams}` : `/api/progress/${studentId}`
+}
+
+/**
+ * The append-only timeline the student, parent, and educator dashboards render (spec §5, §6.9, §6.10). Server-side authorization applies per caller; events are returned newest first.
+ * @summary List a student's progress timeline
+ */
+export const listProgressEvents = async (studentId: string,
+    params?: ListProgressEventsParams, options?: Parameters<typeof customFetch>[1]): Promise<ProgressEventList> => {
+
+  return customFetch<ProgressEventList>(getListProgressEventsUrl(studentId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListProgressEventsQueryKey = (studentId: string,
+    params?: ListProgressEventsParams,) => {
+    return [
+    `/api/progress/${studentId}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListProgressEventsQueryOptions = <TData = Awaited<ReturnType<typeof listProgressEvents>>, TError = ErrorType<PlatformError>>(studentId: string,
+    params?: ListProgressEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgressEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListProgressEventsQueryKey(studentId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listProgressEvents>>> = ({ signal }) => listProgressEvents(studentId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: studentId !== null && studentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listProgressEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListProgressEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listProgressEvents>>>
+export type ListProgressEventsQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary List a student's progress timeline
+ */
+
+export function useListProgressEvents<TData = Awaited<ReturnType<typeof listProgressEvents>>, TError = ErrorType<PlatformError>>(
+ studentId: string,
+    params?: ListProgressEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listProgressEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListProgressEventsQueryOptions(studentId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSessionUrl = () => {
+
+
+
+
+  return `/api/sessions`
+}
+
+/**
+ * Opens a persistent tutoring session for the authenticated student (spec §5). The session — and every turn in it — survives across visits; "continue learning" resumes from lastTurnAt.
+ * @summary Start a tutoring session
+ */
+export const createSession = async (createSessionRequest?: CreateSessionRequest, options?: Parameters<typeof customFetch>[1]): Promise<TutoringSession> => {
+
+  return customFetch<TutoringSession>(getCreateSessionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createSessionRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateSessionMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSession>>, TError,{data?: BodyType<CreateSessionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSession>>, TError,{data?: BodyType<CreateSessionRequest>}, TContext> => {
+
+const mutationKey = ['createSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSession>>, {data?: BodyType<CreateSessionRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSession(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSessionMutationResult = NonNullable<Awaited<ReturnType<typeof createSession>>>
+    export type CreateSessionMutationBody = BodyType<CreateSessionRequest> | undefined
+    export type CreateSessionMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Start a tutoring session
+ */
+export const useCreateSession = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSession>>, TError,{data?: BodyType<CreateSessionRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSession>>,
+        TError,
+        {data?: BodyType<CreateSessionRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateSessionMutationOptions(options));
+    }
+
+export const getListSessionsUrl = (params?: ListSessionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/sessions?${stringifiedParams}` : `/api/sessions`
+}
+
+/**
+ * The student's sessions, most recently active first — powers the dashboard's recent sessions and continue-learning resume.
+ * @summary List the student's tutoring sessions
+ */
+export const listSessions = async (params?: ListSessionsParams, options?: Parameters<typeof customFetch>[1]): Promise<SessionList> => {
+
+  return customFetch<SessionList>(getListSessionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSessionsQueryKey = (params?: ListSessionsParams,) => {
+    return [
+    `/api/sessions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSessionsQueryOptions = <TData = Awaited<ReturnType<typeof listSessions>>, TError = ErrorType<PlatformError>>(params?: ListSessionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSessionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSessions>>> = ({ signal }) => listSessions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSessionsQueryResult = NonNullable<Awaited<ReturnType<typeof listSessions>>>
+export type ListSessionsQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary List the student's tutoring sessions
+ */
+
+export function useListSessions<TData = Awaited<ReturnType<typeof listSessions>>, TError = ErrorType<PlatformError>>(
+ params?: ListSessionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSessions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSessionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetSessionUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sessions/${sessionId}`
+}
+
+/**
+ * One persistent session by id. Accessible by the owning student, a linked parent with granted consent, and an authorized educator.
+ * @summary Get a tutoring session
+ */
+export const getSession = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<TutoringSession> => {
+
+  return customFetch<TutoringSession>(getGetSessionUrl(sessionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSessionQueryKey = (sessionId: string,) => {
+    return [
+    `/api/sessions/${sessionId}`
+    ] as const;
+    }
+
+
+export const getGetSessionQueryOptions = <TData = Awaited<ReturnType<typeof getSession>>, TError = ErrorType<PlatformError>>(sessionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSessionQueryKey(sessionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSession>>> = ({ signal }) => getSession(sessionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sessionId !== null && sessionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSessionQueryResult = NonNullable<Awaited<ReturnType<typeof getSession>>>
+export type GetSessionQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary Get a tutoring session
+ */
+
+export function useGetSession<TData = Awaited<ReturnType<typeof getSession>>, TError = ErrorType<PlatformError>>(
+ sessionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSessionQueryOptions(sessionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteSessionUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sessions/${sessionId}`
+}
+
+/**
+ * Removes the session and its turns (cascade). The student's own sessions only; the audit trail keeps the deletion record.
+ * @summary Delete a tutoring session
+ */
+export const deleteSession = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteSessionUrl(sessionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteSessionMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSession>>, TError,{sessionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSession>>, TError,{sessionId: string}, TContext> => {
+
+const mutationKey = ['deleteSession'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSession>>, {sessionId: string}> = (props) => {
+          const {sessionId} = props ?? {};
+
+          return  deleteSession(sessionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSessionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSession>>>
+
+    export type DeleteSessionMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Delete a tutoring session
+ */
+export const useDeleteSession = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSession>>, TError,{sessionId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSession>>,
+        TError,
+        {sessionId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteSessionMutationOptions(options));
+    }
+
+export const getListSessionTurnsUrl = (sessionId: string,
+    params?: ListSessionTurnsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/sessions/${sessionId}/turns?${stringifiedParams}` : `/api/sessions/${sessionId}/turns`
+}
+
+/**
+ * The persisted transcript, ordered by seq — how the live tutor restores context and how parents/educators read session summaries.
+ * @summary List a session's turns
+ */
+export const listSessionTurns = async (sessionId: string,
+    params?: ListSessionTurnsParams, options?: Parameters<typeof customFetch>[1]): Promise<SessionTurnList> => {
+
+  return customFetch<SessionTurnList>(getListSessionTurnsUrl(sessionId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSessionTurnsQueryKey = (sessionId: string,
+    params?: ListSessionTurnsParams,) => {
+    return [
+    `/api/sessions/${sessionId}/turns`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListSessionTurnsQueryOptions = <TData = Awaited<ReturnType<typeof listSessionTurns>>, TError = ErrorType<PlatformError>>(sessionId: string,
+    params?: ListSessionTurnsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSessionTurns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSessionTurnsQueryKey(sessionId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSessionTurns>>> = ({ signal }) => listSessionTurns(sessionId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sessionId !== null && sessionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSessionTurns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSessionTurnsQueryResult = NonNullable<Awaited<ReturnType<typeof listSessionTurns>>>
+export type ListSessionTurnsQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary List a session's turns
+ */
+
+export function useListSessionTurns<TData = Awaited<ReturnType<typeof listSessionTurns>>, TError = ErrorType<PlatformError>>(
+ sessionId: string,
+    params?: ListSessionTurnsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSessionTurns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSessionTurnsQueryOptions(sessionId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPostSessionTurnUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sessions/${sessionId}/turns`
+}
+
+/**
+ * Stores the learner's turn, generates the tutor's reply with a strategy selected from the profile and assessment evidence (spec §6.2, §6.4), and stores both. Consequential actions are never executed here — a proposed action only rides along as pending (spec §6.11, Sentinel); assessments recorded from this turn's evidence are returned, and a correct answer alone can never classify above memorization/recognition (spec §6.3).
+ * @summary Send a learner turn to the tutor
+ */
+export const postSessionTurn = async (sessionId: string,
+    postSessionTurnRequest: PostSessionTurnRequest, options?: Parameters<typeof customFetch>[1]): Promise<SessionTurnExchange> => {
+
+  return customFetch<SessionTurnExchange>(getPostSessionTurnUrl(sessionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(postSessionTurnRequest)
+  }
+);}
+
+
+
+
+
+export const getPostSessionTurnMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postSessionTurn>>, TError,{sessionId: string;data: BodyType<PostSessionTurnRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postSessionTurn>>, TError,{sessionId: string;data: BodyType<PostSessionTurnRequest>}, TContext> => {
+
+const mutationKey = ['postSessionTurn'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postSessionTurn>>, {sessionId: string;data: BodyType<PostSessionTurnRequest>}> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  postSessionTurn(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostSessionTurnMutationResult = NonNullable<Awaited<ReturnType<typeof postSessionTurn>>>
+    export type PostSessionTurnMutationBody = BodyType<PostSessionTurnRequest>
+    export type PostSessionTurnMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Send a learner turn to the tutor
+ */
+export const usePostSessionTurn = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postSessionTurn>>, TError,{sessionId: string;data: BodyType<PostSessionTurnRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postSessionTurn>>,
+        TError,
+        {sessionId: string;data: BodyType<PostSessionTurnRequest>},
+        TContext
+      > => {
+      return useMutation(getPostSessionTurnMutationOptions(options));
+    }
+
+export const getListGuardianLinksUrl = () => {
+
+
+
+
+  return `/api/parent/links`
+}
+
+/**
+ * The authenticated parent's links to students with their consent status (spec §5, §6.9). A parent only ever sees students reachable through a granted link.
+ * @summary List the parent's guardian links
+ */
+export const listGuardianLinks = async ( options?: Parameters<typeof customFetch>[1]): Promise<GuardianLinkList> => {
+
+  return customFetch<GuardianLinkList>(getListGuardianLinksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGuardianLinksQueryKey = () => {
+    return [
+    `/api/parent/links`
+    ] as const;
+    }
+
+
+export const getListGuardianLinksQueryOptions = <TData = Awaited<ReturnType<typeof listGuardianLinks>>, TError = ErrorType<PlatformError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGuardianLinks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGuardianLinksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGuardianLinks>>> = ({ signal }) => listGuardianLinks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGuardianLinks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGuardianLinksQueryResult = NonNullable<Awaited<ReturnType<typeof listGuardianLinks>>>
+export type ListGuardianLinksQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary List the parent's guardian links
+ */
+
+export function useListGuardianLinks<TData = Awaited<ReturnType<typeof listGuardianLinks>>, TError = ErrorType<PlatformError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGuardianLinks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGuardianLinksQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateGuardianLinkUrl = () => {
+
+
+
+
+  return `/api/parent/links`
+}
+
+/**
+ * Requests a guardian link to a student by their account email. The link starts pending and grants no access until consent is recorded (spec §6.1 — interpretation is not authorization).
+ * @summary Request a link to a student
+ */
+export const createGuardianLink = async (createGuardianLinkRequest: CreateGuardianLinkRequest, options?: Parameters<typeof customFetch>[1]): Promise<GuardianLinkDetails> => {
+
+  return customFetch<GuardianLinkDetails>(getCreateGuardianLinkUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createGuardianLinkRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateGuardianLinkMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGuardianLink>>, TError,{data: BodyType<CreateGuardianLinkRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createGuardianLink>>, TError,{data: BodyType<CreateGuardianLinkRequest>}, TContext> => {
+
+const mutationKey = ['createGuardianLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createGuardianLink>>, {data: BodyType<CreateGuardianLinkRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createGuardianLink(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateGuardianLinkMutationResult = NonNullable<Awaited<ReturnType<typeof createGuardianLink>>>
+    export type CreateGuardianLinkMutationBody = BodyType<CreateGuardianLinkRequest>
+    export type CreateGuardianLinkMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Request a link to a student
+ */
+export const useCreateGuardianLink = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGuardianLink>>, TError,{data: BodyType<CreateGuardianLinkRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createGuardianLink>>,
+        TError,
+        {data: BodyType<CreateGuardianLinkRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateGuardianLinkMutationOptions(options));
+    }
+
+export const getRecordConsentUrl = (linkId: string,) => {
+
+
+
+
+  return `/api/parent/links/${linkId}/consents`
+}
+
+/**
+ * Records an explicit consent (type and terms version) on the parent's own link and marks the link granted (spec §5, §6.1). Consent is a recorded, versioned fact — never an inference.
+ * @summary Record consent on a guardian link
+ */
+export const recordConsent = async (linkId: string,
+    recordConsentRequest: RecordConsentRequest, options?: Parameters<typeof customFetch>[1]): Promise<Consent> => {
+
+  return customFetch<Consent>(getRecordConsentUrl(linkId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(recordConsentRequest)
+  }
+);}
+
+
+
+
+
+export const getRecordConsentMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordConsent>>, TError,{linkId: string;data: BodyType<RecordConsentRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordConsent>>, TError,{linkId: string;data: BodyType<RecordConsentRequest>}, TContext> => {
+
+const mutationKey = ['recordConsent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordConsent>>, {linkId: string;data: BodyType<RecordConsentRequest>}> = (props) => {
+          const {linkId,data} = props ?? {};
+
+          return  recordConsent(linkId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordConsentMutationResult = NonNullable<Awaited<ReturnType<typeof recordConsent>>>
+    export type RecordConsentMutationBody = BodyType<RecordConsentRequest>
+    export type RecordConsentMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Record consent on a guardian link
+ */
+export const useRecordConsent = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordConsent>>, TError,{linkId: string;data: BodyType<RecordConsentRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordConsent>>,
+        TError,
+        {linkId: string;data: BodyType<RecordConsentRequest>},
+        TContext
+      > => {
+      return useMutation(getRecordConsentMutationOptions(options));
+    }
+
+export const getRevokeConsentUrl = (consentId: string,) => {
+
+
+
+
+  return `/api/consents/${consentId}/revoke`
+}
+
+/**
+ * Stamps revokedAt on the consent record and sets its guardian link back to revoked. Append-only — the grant record is never rewritten (spec §5). Access ends immediately.
+ * @summary Revoke a consent record
+ */
+export const revokeConsent = async (consentId: string, options?: Parameters<typeof customFetch>[1]): Promise<Consent> => {
+
+  return customFetch<Consent>(getRevokeConsentUrl(consentId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeConsentMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeConsent>>, TError,{consentId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeConsent>>, TError,{consentId: string}, TContext> => {
+
+const mutationKey = ['revokeConsent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeConsent>>, {consentId: string}> = (props) => {
+          const {consentId} = props ?? {};
+
+          return  revokeConsent(consentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeConsentMutationResult = NonNullable<Awaited<ReturnType<typeof revokeConsent>>>
+
+    export type RevokeConsentMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Revoke a consent record
+ */
+export const useRevokeConsent = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeConsent>>, TError,{consentId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeConsent>>,
+        TError,
+        {consentId: string},
+        TContext
+      > => {
+      return useMutation(getRevokeConsentMutationOptions(options));
+    }
+
+export const getListEducatorStudentsUrl = () => {
+
+
+
+
+  return `/api/educator/students`
+}
+
+/**
+ * Per-student gap and mastery summary for the educator dashboard (spec §6.10). Mastery counts come from evidence-backed assessments only; gaps are open profile entries. Drill down via the student-scoped profile and progress endpoints.
+ * @summary Class rollup for the educator
+ */
+export const listEducatorStudents = async ( options?: Parameters<typeof customFetch>[1]): Promise<EducatorClassSummary> => {
+
+  return customFetch<EducatorClassSummary>(getListEducatorStudentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEducatorStudentsQueryKey = () => {
+    return [
+    `/api/educator/students`
+    ] as const;
+    }
+
+
+export const getListEducatorStudentsQueryOptions = <TData = Awaited<ReturnType<typeof listEducatorStudents>>, TError = ErrorType<PlatformError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEducatorStudents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEducatorStudentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEducatorStudents>>> = ({ signal }) => listEducatorStudents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEducatorStudents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEducatorStudentsQueryResult = NonNullable<Awaited<ReturnType<typeof listEducatorStudents>>>
+export type ListEducatorStudentsQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary Class rollup for the educator
+ */
+
+export function useListEducatorStudents<TData = Awaited<ReturnType<typeof listEducatorStudents>>, TError = ErrorType<PlatformError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEducatorStudents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEducatorStudentsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAccessibilityPrefsUrl = () => {
+
+
+
+
+  return `/api/me/accessibility`
+}
+
+/**
+ * The authenticated user's accessibility settings (spec §6.8), created with product defaults for the Deaf/HoH-first audience — captions on, TTS off. No diagnosis gate exists; any user sets any preference.
+ * @summary Get the caller's accessibility preferences
+ */
+export const getAccessibilityPrefs = async ( options?: Parameters<typeof customFetch>[1]): Promise<AccessibilityPrefs> => {
+
+  return customFetch<AccessibilityPrefs>(getGetAccessibilityPrefsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAccessibilityPrefsQueryKey = () => {
+    return [
+    `/api/me/accessibility`
+    ] as const;
+    }
+
+
+export const getGetAccessibilityPrefsQueryOptions = <TData = Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError = ErrorType<PlatformError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAccessibilityPrefsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAccessibilityPrefs>>> = ({ signal }) => getAccessibilityPrefs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAccessibilityPrefsQueryResult = NonNullable<Awaited<ReturnType<typeof getAccessibilityPrefs>>>
+export type GetAccessibilityPrefsQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary Get the caller's accessibility preferences
+ */
+
+export function useGetAccessibilityPrefs<TData = Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError = ErrorType<PlatformError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccessibilityPrefs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAccessibilityPrefsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateAccessibilityPrefsUrl = () => {
+
+
+
+
+  return `/api/me/accessibility`
+}
+
+/**
+ * Partial update applied app-wide (spec §6.8). Break interval must stay within 1–240 minutes (mirrors the DB check).
+ * @summary Update the caller's accessibility preferences
+ */
+export const updateAccessibilityPrefs = async (updateAccessibilityPrefsRequest: UpdateAccessibilityPrefsRequest, options?: Parameters<typeof customFetch>[1]): Promise<AccessibilityPrefs> => {
+
+  return customFetch<AccessibilityPrefs>(getUpdateAccessibilityPrefsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateAccessibilityPrefsRequest)
+  }
+);}
+
+
+
+
+
+export const getUpdateAccessibilityPrefsMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, TError,{data: BodyType<UpdateAccessibilityPrefsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, TError,{data: BodyType<UpdateAccessibilityPrefsRequest>}, TContext> => {
+
+const mutationKey = ['updateAccessibilityPrefs'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, {data: BodyType<UpdateAccessibilityPrefsRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAccessibilityPrefs(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAccessibilityPrefsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAccessibilityPrefs>>>
+    export type UpdateAccessibilityPrefsMutationBody = BodyType<UpdateAccessibilityPrefsRequest>
+    export type UpdateAccessibilityPrefsMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Update the caller's accessibility preferences
+ */
+export const useUpdateAccessibilityPrefs = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccessibilityPrefs>>, TError,{data: BodyType<UpdateAccessibilityPrefsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAccessibilityPrefs>>,
+        TError,
+        {data: BodyType<UpdateAccessibilityPrefsRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateAccessibilityPrefsMutationOptions(options));
     }
 
