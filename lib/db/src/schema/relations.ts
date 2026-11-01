@@ -4,6 +4,7 @@ import { learningProfiles } from "./learning-profiles";
 import { tutoringSessions, assessments } from "./tutoring";
 import { progressEvents } from "./progress";
 import { accessibilityPrefs } from "./accessibility";
+import { educatorLinks, educatorAssignments, educatorSupports } from "./educator";
 
 /**
  * The reverse side of the query graph — everything reachable FROM a user.
@@ -26,4 +27,18 @@ export const usersRelations = relations(users, ({ many, one }) => ({
     relationName: "guardian_link_student",
   }),
   consentsAsGuardian: many(consents),
+  educatorLinksAsEducator: many(educatorLinks, {
+    relationName: "educator_link_educator",
+  }),
+  educatorLinksAsStudent: many(educatorLinks, {
+    relationName: "educator_link_student",
+  }),
+  educatorAssignmentsAsEducator: many(educatorAssignments, {
+    relationName: "educator_assignment_educator",
+  }),
+  educatorAssignmentsAsStudent: many(educatorAssignments),
+  educatorSupportsAsStudent: many(educatorSupports),
+  educatorSupportsUpdated: many(educatorSupports, {
+    relationName: "educator_supports_updater",
+  }),
 }));

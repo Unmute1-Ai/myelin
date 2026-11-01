@@ -29,6 +29,13 @@
       "when": 1793500268444,
       "tag": "0003_session_turn_fidelity",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793503762185,
+      "tag": "0004_educator_linking_model",
+      "breakpoints": true
     }
   ]
 }
