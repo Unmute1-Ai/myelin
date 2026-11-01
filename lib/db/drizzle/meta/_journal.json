@@ -15,6 +15,13 @@
       "when": 1793497963094,
       "tag": "0001_evidence_governance_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793500223031,
+      "tag": "0002_live_tutor_pending_and_materials",
+      "breakpoints": true
     }
   ]
 }
