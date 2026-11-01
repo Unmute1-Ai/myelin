@@ -23,8 +23,20 @@ pnpm smoke      # render smoke test against a running server (BASE_URL env optio
 |---|---|
 | `NEXT_PUBLIC_API_BASE_URL` | Browser-facing origin of the Express API (`artifacts/api-server`). See `.env.example`. Unset is valid while nothing fetches — `lib/api-config.ts` surfaces "not configured" instead of guessing an origin. |
 
+`NEXT_PUBLIC_` variables are **inlined at build time**: set them in the
+environment (or Vercel project settings) before `pnpm build` / before a
+deploy, and redeploy when they change.
+
 React and React DOM resolve to the workspace catalog's **exact 19.1.0 pin**
 (Expo requires it — do not bump). `next` is `^15.5.28`, which supports React 19.
+
+## Deploy to Vercel
+
+`vercel.json` pins the `nextjs` framework. In the Vercel project, set the
+**Root Directory** to `apps/web` (Vercel detects the pnpm workspace and
+installs from the repo root), pin Node.js 24 via the `NODE_VERSION`
+environment variable, and set `NEXT_PUBLIC_API_BASE_URL` to the API's public
+origin. The full walkthrough lives in the root README's Deployment section.
 
 ## Design tokens
 

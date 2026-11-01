@@ -47,3 +47,9 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Environment files — values live in the environment, never in git.
+# *.example files are the committable templates.
+.env
+.env.*
+!.env.example

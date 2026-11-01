@@ -213,6 +213,9 @@ importers:
 
   artifacts/api-server:
     dependencies:
+      '@node-rs/argon2':
+        specifier: ^2.2.2
+        version: 2.2.2
       '@workspace/api-zod':
         specifier: workspace:*
         version: link:../../lib/api-zod
