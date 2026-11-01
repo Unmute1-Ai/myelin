@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>You're offline · PRIMER</title>
+    <!--
+      The explicit offline state (spec §6.14). Fully self-contained — inline
+      styles, inline icon, zero network requests — because this page renders
+      exactly when the network is gone. Brand tokens are inlined from
+      apps/web/app/globals.css (that file is a build artifact, unreachable
+      offline). The copy is deliberately honest: learner data comes from the
+      network, so offline means no lessons, no dashboards, and nothing made up.
+    -->
+    <style>
+      :root {
+        --background: #f9f8ff;
+        --lavender: #ece7fd;
+        --primary: #5b21b6;
+        --primary-soft: #ede9fe;
+        --on-primary: #ffffff;
+        --ink: #2b2440;
+        --ink-soft: #6f6a85;
+        --line: #e6e1f5;
+        --radius-card: 1.25rem;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        background: var(--background);
+        color: var(--ink);
+        font-family: "Nunito", "Quicksand", ui-rounded, "SF Pro Rounded",
+          "Segoe UI", system-ui, sans-serif;
+        padding: 1.5rem;
+      }
+      main {
+        max-width: 26rem;
+        width: 100%;
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        padding: 2rem;
+        text-align: center;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 4rem;
+        height: 4rem;
+        border-radius: 9999px;
+        background: var(--lavender);
+      }
+      h1 {
+        margin: 1rem 0 0.5rem;
+        font-size: 1.5rem;
+        font-weight: 800;
+      }
+      p {
+        margin: 0.5rem 0;
+        line-height: 1.5;
+        color: var(--ink-soft);
+        font-weight: 600;
+      }
+      .honesty {
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        background: var(--primary-soft);
+        border-radius: 0.75rem;
+        color: var(--primary);
+        font-size: 0.875rem;
+      }
+      button {
+        margin-top: 1.25rem;
+        border: 0;
+        border-radius: 9999px;
+        padding: 0.75rem 2rem;
+        background: var(--primary);
+        color: var(--on-primary);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="badge" aria-hidden="true">
+        <svg
+          width="40"
+          height="40"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#5b21b6"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          role="img"
+          aria-label="No connection"
+        >
+          <path d="M12 20h.01" />
+          <path d="M8.5 16.4a5 5 0 0 1 7 0" />
+          <path d="M5 12.9a10 10 0 0 1 5.3-2.8" />
+          <path d="M19 12.9a10 10 0 0 0-2-1.6" />
+          <path d="M2 8.8a15 15 0 0 1 4.2-2.4" />
+          <path d="M22 8.8a15 15 0 0 0-11.3-3.2" />
+          <line x1="2" y1="2" x2="22" y2="22" />
+        </svg>
+      </div>
+      <h1>You're offline</h1>
+      <p>PRIMER needs an internet connection to load lessons and learner data.</p>
+      <p class="honesty">
+        Nothing here is guessed or made up while you're disconnected. Reconnect
+        and everything picks up right where you left off.
+      </p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>
