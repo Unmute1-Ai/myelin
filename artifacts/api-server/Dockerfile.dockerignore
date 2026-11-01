@@ -1,0 +1,25 @@
+# Context hygiene for `docker build -f artifacts/api-server/Dockerfile .`
+# (BuildKit reads this file because it sits next to the Dockerfile.)
+#
+# .env* files are excluded deliberately: environment values are supplied at
+# run time, never baked into images or the build context.
+
+.git
+**/.git
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+
+# Local env files must never enter the build context.
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+
+# Scratch and editor noise
+*.log
+.DS_Store

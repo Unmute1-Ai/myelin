@@ -1,8 +1,10 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import cookieParser from "cookie-parser";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { errorHandler } from "./middlewares/errorHandler";
 
 const app: Express = express();
 
@@ -28,7 +30,12 @@ app.use(
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 app.use("/api", router);
+
+// Typed auth errors become 401/403 responses here; anything unexpected is a
+// logged 500 with a generic body.
+app.use(errorHandler);
 
 export default app;

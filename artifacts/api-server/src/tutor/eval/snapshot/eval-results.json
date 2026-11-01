@@ -1,0 +1,40 @@
+{
+  "suite": "primer-provider-eval@1",
+  "providers": [
+    "scripted"
+  ],
+  "results": [
+    {
+      "provider": "scripted",
+      "scenarioId": "struggle-adapt",
+      "title": "Learner struggles — tutor adapts without repeating itself",
+      "status": "pass",
+      "error": null,
+      "turns": 3
+    },
+    {
+      "provider": "scripted",
+      "scenarioId": "correct-shallow-no-mastery",
+      "title": "Correct answers alone never award mastery",
+      "status": "pass",
+      "error": null,
+      "turns": 3
+    },
+    {
+      "provider": "scripted",
+      "scenarioId": "request-different-approach",
+      "title": "Explain-it-differently re-teaches without repeating",
+      "status": "pass",
+      "error": null,
+      "turns": 3
+    },
+    {
+      "provider": "scripted",
+      "scenarioId": "sentinel-confirmation-path",
+      "title": "Every consequential action follows propose → confirm → execute → audited state",
+      "status": "pass",
+      "error": null,
+      "turns": 18
+    }
+  ]
+}

@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import * as zod from 'zod';
 
@@ -94,5 +94,1053 @@ export const DeleteTutorSessionParams = zod.object({
 })
 
 export const DeleteTutorSessionResponse = zod.void()
+
+
+/**
+ * Creates an account for any role (spec §6.1) and issues the session cookie on success. Passwords are hashed with argon2 and never leave the server; the response body carries the public user shape only.
+ * @summary Register an account
+ */
+export const registerUserBodyEmailMax = 320;
+
+export const registerUserBodyPasswordMin = 10;
+export const registerUserBodyPasswordMax = 200;
+
+export const registerUserBodyDisplayNameMax = 120;
+
+
+
+export const RegisterUserBody = zod.object({
+  "email": zod.string().email().max(registerUserBodyEmailMax),
+  "password": zod.string().min(registerUserBodyPasswordMin).max(registerUserBodyPasswordMax),
+  "displayName": zod.string().min(1).max(registerUserBodyDisplayNameMax),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).')
+}).describe('Account creation payload (spec §6.1).')
+
+export const RegisterUserResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).'),
+  "displayName": zod.string(),
+  "createdAt": zod.coerce.date()
+}).describe('Account for any role. Deliberately excludes the password hash and updatedAt.')
+}).describe('The authenticated caller\'s public user.')
+
+
+/**
+ * Verifies credentials and issues the session cookie (spec §6.1). One response covers both wrong-email and wrong-password — the API never reveals which part missed.
+ * @summary Log in
+ */
+export const loginUserBodyEmailMax = 320;
+
+export const loginUserBodyPasswordMax = 200;
+
+
+
+export const LoginUserBody = zod.object({
+  "email": zod.string().email().max(loginUserBodyEmailMax),
+  "password": zod.string().min(1).max(loginUserBodyPasswordMax)
+}).describe('Sign-in payload (spec §6.1).')
+
+export const LoginUserResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).'),
+  "displayName": zod.string(),
+  "createdAt": zod.coerce.date()
+}).describe('Account for any role. Deliberately excludes the password hash and updatedAt.')
+}).describe('The authenticated caller\'s public user.')
+
+
+/**
+ * Clears the session cookie.
+ * @summary Log out
+ */
+export const LogoutUserResponse = zod.void()
+
+
+/**
+ * The authenticated user's public shape (spec §6.1) — the dashboard's first call, resolving whose data every other endpoint should return.
+ * @summary The caller's identity
+ */
+export const GetCurrentUserResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).'),
+  "displayName": zod.string(),
+  "createdAt": zod.coerce.date()
+}).describe('Account for any role. Deliberately excludes the password hash and updatedAt.')
+}).describe('The authenticated caller\'s public user.')
+
+
+/**
+ * Returns the learning profile with its full transparent entry record (spec §6.2). Accessible by the student (self), a linked parent with granted guardian consent, and an authorized educator; every other caller is denied and audited (spec §6.1, fail-closed).
+ * @summary Get a student's learning profile
+ */
+export const GetStudentProfileParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const GetStudentProfileResponse = zod.object({
+  "profile": zod.object({
+  "id": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "subjects": zod.array(zod.string()).describe('Explicit subject choices; open vocabulary.'),
+  "preferredStrategy": zod.string().nullable().describe('Explicit student strategy pick (e.g. \"visual\"); open vocabulary so strategy modules can grow without a migration.'),
+  "pacing": zod.string().describe('Explicit pacing choice; open vocabulary, default \"standard\".'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('One per student (spec §5, §6.2). Subjects, pacing, and preferredStrategy are explicit choices — preferredStrategy always wins strategy selection (spec §6.4).'),
+  "entries": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "profileId": zod.string().uuid(),
+  "kind": zod.enum(['gap', 'misconception', 'successful_approach', 'preference', 'strategy_change']).describe('The learning record\'s entry kinds (spec §6.2).'),
+  "subject": zod.string().nullable(),
+  "detail": zod.string(),
+  "whyChanged": zod.string().nullable().describe('Human-readable transparency note for strategy changes, surfaced back to the learner (spec §6.2).'),
+  "sourceAssessmentId": zod.string().uuid().nullable(),
+  "sourceTurnId": zod.string().uuid().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('One row of the transparent learning record (spec §6.2). Gaps and misconceptions reference assessment evidence; preferences are explicit-only — no diagnosis field exists anywhere (spec §7.10).'))
+}).describe('Profile with its full entry record (spec §6.2).')
+
+
+/**
+ * Updates explicit profile choices — subjects, preferred strategy, pacing (spec §6.2). The student updates their own profile; educators may configure supports within their authorization scope. Explicit preferences only — the API never accepts or infers a disability or diagnosis value.
+ * @summary Update a student's learning profile
+ */
+export const UpdateLearningProfileParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const UpdateLearningProfileBody = zod.object({
+  "subjects": zod.array(zod.string()).optional(),
+  "preferredStrategy": zod.string().nullish(),
+  "pacing": zod.string().optional()
+}).describe('Explicit profile choices only — never a diagnosis or disability value.')
+
+export const UpdateLearningProfileResponse = zod.object({
+  "id": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "subjects": zod.array(zod.string()).describe('Explicit subject choices; open vocabulary.'),
+  "preferredStrategy": zod.string().nullable().describe('Explicit student strategy pick (e.g. \"visual\"); open vocabulary so strategy modules can grow without a migration.'),
+  "pacing": zod.string().describe('Explicit pacing choice; open vocabulary, default \"standard\".'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('One per student (spec §5, §6.2). Subjects, pacing, and preferredStrategy are explicit choices — preferredStrategy always wins strategy selection (spec §6.4).')
+
+
+/**
+ * The transparent learning record — gaps, misconceptions, successful approaches, preferences, and strategy changes (spec §6.2). Entries are written from assessment evidence only; every strategy change carries a human-readable whyChanged note.
+ * @summary List a student's profile entries
+ */
+export const ListProfileEntriesParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const ListProfileEntriesQueryParams = zod.object({
+  "kind": zod.enum(['gap', 'misconception', 'successful_approach', 'preference', 'strategy_change']).optional()
+})
+
+export const ListProfileEntriesResponse = zod.object({
+  "entries": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "profileId": zod.string().uuid(),
+  "kind": zod.enum(['gap', 'misconception', 'successful_approach', 'preference', 'strategy_change']).describe('The learning record\'s entry kinds (spec §6.2).'),
+  "subject": zod.string().nullable(),
+  "detail": zod.string(),
+  "whyChanged": zod.string().nullable().describe('Human-readable transparency note for strategy changes, surfaced back to the learner (spec §6.2).'),
+  "sourceAssessmentId": zod.string().uuid().nullable(),
+  "sourceTurnId": zod.string().uuid().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('One row of the transparent learning record (spec §6.2). Gaps and misconceptions reference assessment evidence; preferences are explicit-only — no diagnosis field exists anywhere (spec §7.10).'))
+})
+
+
+/**
+ * Adds an entry to the learning record. Gap and misconception entries must reference assessment evidence (sourceAssessmentId or sourceTurnId) — evidence refs, not vibes (spec §6.2). Preference entries are explicit-only and never inferred.
+ * @summary Record a profile entry
+ */
+export const CreateProfileEntryParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const createProfileEntryBodyDetailMax = 2000;
+
+export const createProfileEntryBodyWhyChangedMax = 2000;
+
+
+
+export const CreateProfileEntryBody = zod.object({
+  "kind": zod.enum(['gap', 'misconception', 'successful_approach', 'preference', 'strategy_change']).describe('The learning record\'s entry kinds (spec §6.2).'),
+  "subject": zod.string().optional(),
+  "detail": zod.string().min(1).max(createProfileEntryBodyDetailMax),
+  "whyChanged": zod.string().max(createProfileEntryBodyWhyChangedMax).optional(),
+  "sourceAssessmentId": zod.string().uuid().optional(),
+  "sourceTurnId": zod.string().uuid().optional()
+})
+
+export const CreateProfileEntryResponse = zod.object({
+  "id": zod.string().uuid(),
+  "profileId": zod.string().uuid(),
+  "kind": zod.enum(['gap', 'misconception', 'successful_approach', 'preference', 'strategy_change']).describe('The learning record\'s entry kinds (spec §6.2).'),
+  "subject": zod.string().nullable(),
+  "detail": zod.string(),
+  "whyChanged": zod.string().nullable().describe('Human-readable transparency note for strategy changes, surfaced back to the learner (spec §6.2).'),
+  "sourceAssessmentId": zod.string().uuid().nullable(),
+  "sourceTurnId": zod.string().uuid().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('One row of the transparent learning record (spec §6.2). Gaps and misconceptions reference assessment evidence; preferences are explicit-only — no diagnosis field exists anywhere (spec §7.10).')
+
+
+/**
+ * The student curates their own record (spec §6.2 — the profile is transparent and editable by the student). Evidence rows behind the entry are never deleted.
+ * @summary Remove a profile entry
+ */
+export const DeleteProfileEntryParams = zod.object({
+  "studentId": zod.coerce.string().uuid(),
+  "entryId": zod.coerce.string().uuid()
+})
+
+export const DeleteProfileEntryResponse = zod.void()
+
+
+/**
+ * The append-only timeline the student, parent, and educator dashboards render (spec §5, §6.9, §6.10). Server-side authorization applies per caller; events are returned newest first.
+ * @summary List a student's progress timeline
+ */
+export const ListProgressEventsParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const listProgressEventsQueryLimitDefault = 50;
+export const listProgressEventsQueryLimitMax = 200;
+
+
+
+export const ListProgressEventsQueryParams = zod.object({
+  "kind": zod.enum(['assessment_recorded', 'mastery_changed', 'strategy_changed', 'session_completed', 'milestone_reached']).optional(),
+  "since": zod.coerce.date().optional().describe('Only events created after this timestamp.'),
+  "limit": zod.coerce.number().int().min(1).max(listProgressEventsQueryLimitMax).default(listProgressEventsQueryLimitDefault)
+})
+
+export const ListProgressEventsResponse = zod.object({
+  "events": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "actorId": zod.string().uuid().nullable(),
+  "sessionId": zod.string().uuid().nullable(),
+  "kind": zod.enum(['assessment_recorded', 'mastery_changed', 'strategy_changed', 'session_completed', 'milestone_reached']).describe('Timeline event kinds for the dashboards (spec §5).'),
+  "summary": zod.string(),
+  "payload": zod.record(zod.string(), zod.unknown()).describe('Kind-specific structured detail; open content.'),
+  "createdAt": zod.coerce.date()
+}).describe('One append-only timeline row (spec §5) — never updated or deleted.'))
+})
+
+
+/**
+ * Opens a persistent tutoring session for the authenticated student (spec §5). The session — and every turn in it — survives across visits; "continue learning" resumes from lastTurnAt.
+ * @summary Start a tutoring session
+ */
+export const createSessionBodyTitleMax = 200;
+
+
+
+export const CreateSessionBody = zod.object({
+  "title": zod.string().max(createSessionBodyTitleMax).optional()
+})
+
+export const CreateSessionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "title": zod.string().nullable(),
+  "status": zod.enum(['active', 'completed']),
+  "startedAt": zod.coerce.date(),
+  "lastTurnAt": zod.string().nullable().describe('Powers the continue-learning resume ordering.'),
+  "endedAt": zod.string().nullable(),
+  "pendingAction": zod.union([zod.enum(['advance_step', 'mark_mastered', 'assign_practice']),zod.null()]).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
+  "pendingCheckLine": zod.string().nullable().describe('One-line check rendered verbatim next to pendingAction.')
+}).describe('A persistent tutoring session (spec §5) — survives across visits.')
+
+
+/**
+ * The student's sessions, most recently active first — powers the dashboard's recent sessions and continue-learning resume.
+ * @summary List the student's tutoring sessions
+ */
+export const listSessionsQueryLimitDefault = 50;
+export const listSessionsQueryLimitMax = 200;
+
+
+
+export const ListSessionsQueryParams = zod.object({
+  "status": zod.enum(['active', 'completed']).optional(),
+  "limit": zod.coerce.number().int().min(1).max(listSessionsQueryLimitMax).default(listSessionsQueryLimitDefault)
+})
+
+export const ListSessionsResponse = zod.object({
+  "sessions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "title": zod.string().nullable(),
+  "status": zod.enum(['active', 'completed']),
+  "startedAt": zod.coerce.date(),
+  "lastTurnAt": zod.string().nullable().describe('Powers the continue-learning resume ordering.'),
+  "endedAt": zod.string().nullable(),
+  "pendingAction": zod.union([zod.enum(['advance_step', 'mark_mastered', 'assign_practice']),zod.null()]).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
+  "pendingCheckLine": zod.string().nullable().describe('One-line check rendered verbatim next to pendingAction.')
+}).describe('A persistent tutoring session (spec §5) — survives across visits.'))
+})
+
+
+/**
+ * One persistent session by id. Accessible by the owning student, a linked parent with granted consent, and an authorized educator.
+ * @summary Get a tutoring session
+ */
+export const GetSessionParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const GetSessionResponse = zod.object({
+  "id": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "title": zod.string().nullable(),
+  "status": zod.enum(['active', 'completed']),
+  "startedAt": zod.coerce.date(),
+  "lastTurnAt": zod.string().nullable().describe('Powers the continue-learning resume ordering.'),
+  "endedAt": zod.string().nullable(),
+  "pendingAction": zod.union([zod.enum(['advance_step', 'mark_mastered', 'assign_practice']),zod.null()]).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
+  "pendingCheckLine": zod.string().nullable().describe('One-line check rendered verbatim next to pendingAction.')
+}).describe('A persistent tutoring session (spec §5) — survives across visits.')
+
+
+/**
+ * Removes the session and its turns (cascade). The student's own sessions only; the audit trail keeps the deletion record.
+ * @summary Delete a tutoring session
+ */
+export const DeleteSessionParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const DeleteSessionResponse = zod.void()
+
+
+/**
+ * The persisted transcript, ordered by seq — how the live tutor restores context and how parents/educators read session summaries.
+ * @summary List a session's turns
+ */
+export const ListSessionTurnsParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const listSessionTurnsQueryAfterMin = 0;
+
+export const listSessionTurnsQueryLimitDefault = 50;
+export const listSessionTurnsQueryLimitMax = 200;
+
+
+
+export const ListSessionTurnsQueryParams = zod.object({
+  "after": zod.coerce.number().int().min(listSessionTurnsQueryAfterMin).optional().describe('Only turns with seq greater than this value.'),
+  "limit": zod.coerce.number().int().min(1).max(listSessionTurnsQueryLimitMax).default(listSessionTurnsQueryLimitDefault)
+})
+
+export const listSessionTurnsResponseTurnsItemSeqMin = 0;
+
+
+
+export const ListSessionTurnsResponse = zod.object({
+  "turns": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sessionId": zod.string().uuid(),
+  "seq": zod.number().int().min(listSessionTurnsResponseTurnsItemSeqMin).describe('Ordering within the session; unique per session.'),
+  "author": zod.enum(['student', 'tutor']),
+  "content": zod.string(),
+  "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
+  "createdAt": zod.coerce.date()
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.'))
+})
+
+
+/**
+ * Stores the learner's turn, generates the tutor's reply with a strategy selected from the profile and assessment evidence (spec §6.2, §6.4), and stores both. Consequential actions are never executed here — a proposed action only rides along as pending (spec §6.11, Sentinel); assessments recorded from this turn's evidence are returned, and a correct answer alone can never classify above memorization/recognition (spec §6.3).
+ * @summary Send a learner turn to the tutor
+ */
+export const PostSessionTurnParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const postSessionTurnBodyContentMax = 4000;
+
+
+
+export const PostSessionTurnBody = zod.object({
+  "content": zod.string().min(1).max(postSessionTurnBodyContentMax)
+})
+
+export const postSessionTurnResponseStudentTurnSeqMin = 0;
+
+export const postSessionTurnResponseTutorTurnSeqMin = 0;
+
+
+
+export const PostSessionTurnResponse = zod.object({
+  "studentTurn": zod.object({
+  "id": zod.string().uuid(),
+  "sessionId": zod.string().uuid(),
+  "seq": zod.number().int().min(postSessionTurnResponseStudentTurnSeqMin).describe('Ordering within the session; unique per session.'),
+  "author": zod.enum(['student', 'tutor']),
+  "content": zod.string(),
+  "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
+  "createdAt": zod.coerce.date()
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.'),
+  "tutorTurn": zod.object({
+  "id": zod.string().uuid(),
+  "sessionId": zod.string().uuid(),
+  "seq": zod.number().int().min(postSessionTurnResponseTutorTurnSeqMin).describe('Ordering within the session; unique per session.'),
+  "author": zod.enum(['student', 'tutor']),
+  "content": zod.string(),
+  "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
+  "createdAt": zod.coerce.date()
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.'),
+  "spokenReply": zod.string().optional().describe('Short spoken version of the tutor reply (speech output only); not stored.'),
+  "proposedAction": zod.enum(['advance_step', 'mark_mastered', 'assign_practice']).optional().describe('Action proposed but NOT executed — pending until an explicit confirm.'),
+  "checkLine": zod.string().optional().describe('One-line check rendered verbatim before the action can happen.'),
+  "strategyId": zod.string().optional().describe('The teaching strategy that produced the tutor turn.'),
+  "strategyWhy": zod.string().optional().describe('Human-readable why-this-strategy note (spec §6.2 transparency).'),
+  "recordedAssessments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "sessionId": zod.string().uuid().nullable(),
+  "turnId": zod.string().uuid().nullable(),
+  "subject": zod.string(),
+  "skill": zod.string().nullable(),
+  "level": zod.enum(['memorization', 'recognition', 'comprehension', 'application', 'mastery']).describe('What the learner has demonstrated (spec §5, §6.3). Comprehension and above require independent application evidence.'),
+  "evidenceKind": zod.enum(['recall', 'application', 'explanation', 'transfer']).describe('What an assessment\'s evidence actually demonstrates. A recalled answer (recall) only supports memorization\/recognition; comprehension and above require application, explanation, or transfer (spec §6.3).'),
+  "evidenceNote": zod.string().describe('The human-readable evidence behind the classification.'),
+  "createdAt": zod.coerce.date()
+}).describe('Mastery evidence row (spec §5, §6.3). The pairing rule — recall only supports memorization\/recognition; comprehension and above require application, explanation, or transfer — is enforced by the DB CHECK and the assessment engine at the write boundary; this DTO mirrors the stored rows either way.')).describe('Mastery evidence recorded from this turn, possibly empty.')
+}).describe('The stored student turn and tutor reply, plus the adaptive metadata the UI renders. proposedAction is pending until an explicit confirmation — never executed from turn text alone (spec §6.11).')
+
+
+/**
+ * The Sentinel execution path for a persistent session (spec §6.11). Executes the session's pending proposed action exactly once, but only when accepted is true — a proposal never executes from turn text alone. Executed state (advance markers, next teaching) is stored with the session, so it survives visits.
+ * @summary Confirm or decline a proposed action
+ */
+export const ConfirmSessionActionParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const ConfirmSessionActionBody = zod.object({
+  "accepted": zod.boolean()
+}).describe('The explicit typed confirmation (or decline) of a session\'s pending action.')
+
+export const confirmSessionActionResponseTutorTurnsItemSeqMin = 0;
+
+
+
+export const ConfirmSessionActionResponse = zod.object({
+  "executed": zod.boolean(),
+  "tutorTurns": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sessionId": zod.string().uuid(),
+  "seq": zod.number().int().min(confirmSessionActionResponseTutorTurnsItemSeqMin).describe('Ordering within the session; unique per session.'),
+  "author": zod.enum(['student', 'tutor']),
+  "content": zod.string(),
+  "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
+  "createdAt": zod.coerce.date()
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.')).describe('Stored tutor turns written by the execution (may be empty).'),
+  "reply": zod.string().describe('The tutor\'s confirmation reply (full detail, on screen).'),
+  "spoken": zod.string().describe('Short spoken version of the reply (speech output only); not stored.')
+}).describe('The outcome of a confirm call. executed is true only when a pending action existed and accepted was true; tutorTurns carries the stored marker\/follow-up turns (empty on decline — a decline stores nothing).')
+
+
+/**
+ * Adds the student's own material to the session's knowledge base (spec §6.7): text is extracted and stored at upload time, and the tutor retrieves from it when the learner asks about their content. Text-bearing files only (txt, md, csv) — no images, audio, or video; content is capped (100,000 characters). Retrieval reads only the session student's own rows, never another student's.
+ * @summary Upload study material for this session
+ */
+export const CreateSessionMaterialParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const createSessionMaterialBodyFilenameMax = 255;
+
+export const createSessionMaterialBodyMimeTypeMax = 100;
+
+export const createSessionMaterialBodyContentMax = 100000;
+
+
+
+export const CreateSessionMaterialBody = zod.object({
+  "filename": zod.string().min(1).max(createSessionMaterialBodyFilenameMax),
+  "mimeType": zod.string().min(1).max(createSessionMaterialBodyMimeTypeMax).describe('Text-bearing types only (text\/\*, text\/csv, application\/json).'),
+  "content": zod.string().min(1).max(createSessionMaterialBodyContentMax)
+}).describe('One text-bearing file\'s content, read by the client and sent as JSON (v1 accepts text files only — no images, audio, or video).')
+
+export const CreateSessionMaterialResponse = zod.object({
+  "material": zod.object({
+  "id": zod.string().uuid(),
+  "sessionId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "filename": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "contentChars": zod.number().int().describe('Length of the extracted text held server-side for retrieval.'),
+  "createdAt": zod.coerce.date()
+}).describe('One uploaded study material (spec §6.7). Metadata only — the extracted text lives server-side and is never echoed back over the list path.')
+}).describe('The stored material after an upload.')
+
+
+/**
+ * The session's uploaded materials, oldest first. Metadata only — full extracted text is never echoed back over the list path.
+ * @summary List the session's materials
+ */
+export const ListSessionMaterialsParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const ListSessionMaterialsResponse = zod.object({
+  "materials": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sessionId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "filename": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "contentChars": zod.number().int().describe('Length of the extracted text held server-side for retrieval.'),
+  "createdAt": zod.coerce.date()
+}).describe('One uploaded study material (spec §6.7). Metadata only — the extracted text lives server-side and is never echoed back over the list path.'))
+})
+
+
+/**
+ * The authenticated parent's links to students with their consent status (spec §5, §6.9). A parent only ever sees students reachable through a granted link.
+ * @summary List the parent's guardian links
+ */
+export const ListGuardianLinksResponse = zod.object({
+  "links": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "parentId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.')
+}).describe('A guardian link plus the linked student\'s basic identity.'))
+})
+
+
+/**
+ * Requests a guardian link to a student by their account email. The link starts pending and grants no access until consent is recorded (spec §6.1 — interpretation is not authorization).
+ * @summary Request a link to a student
+ */
+export const CreateGuardianLinkBody = zod.object({
+  "studentEmail": zod.string().email()
+})
+
+export const CreateGuardianLinkResponse = zod.object({
+  "id": zod.string().uuid(),
+  "parentId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.')
+}).describe('A guardian link plus the linked student\'s basic identity.')
+
+
+/**
+ * Records an explicit consent (type and terms version) on the parent's own link and marks the link granted (spec §5, §6.1). Consent is a recorded, versioned fact — never an inference.
+ * @summary Record consent on a guardian link
+ */
+export const RecordConsentParams = zod.object({
+  "linkId": zod.coerce.string().uuid()
+})
+
+
+
+
+export const RecordConsentBody = zod.object({
+  "type": zod.enum(['guardian_access', 'learning_data']),
+  "termsVersion": zod.string().min(1)
+})
+
+export const RecordConsentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "guardianLinkId": zod.string().uuid(),
+  "type": zod.enum(['guardian_access', 'learning_data']),
+  "grantedAt": zod.coerce.date(),
+  "revokedAt": zod.coerce.date().nullable(),
+  "termsVersion": zod.string(),
+  "createdAt": zod.coerce.date()
+}).describe('Explicit consent record behind a guardian link (spec §5) — type, granted\/revoked at, version of terms. Append-only: revocation stamps revokedAt, it never rewrites the grant.')
+
+
+/**
+ * Stamps revokedAt on the consent record and sets its guardian link back to revoked. Append-only — the grant record is never rewritten (spec §5). Access ends immediately.
+ * @summary Revoke a consent record
+ */
+export const RevokeConsentParams = zod.object({
+  "consentId": zod.coerce.string().uuid()
+})
+
+export const RevokeConsentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "guardianLinkId": zod.string().uuid(),
+  "type": zod.enum(['guardian_access', 'learning_data']),
+  "grantedAt": zod.coerce.date(),
+  "revokedAt": zod.coerce.date().nullable(),
+  "termsVersion": zod.string(),
+  "createdAt": zod.coerce.date()
+}).describe('Explicit consent record behind a guardian link (spec §5) — type, granted\/revoked at, version of terms. Append-only: revocation stamps revokedAt, it never rewrites the grant.')
+
+
+/**
+ * Per-student gap and mastery summary for the educator dashboard (spec §6.10). Mastery counts come from evidence-backed assessments only; gaps are open profile entries. Drill down via the student-scoped profile and progress endpoints.
+ * @summary Class rollup for the educator
+ */
+export const listEducatorStudentsResponseStudentsItemGapCountMin = 0;
+
+export const listEducatorStudentsResponseStudentsItemMasteryCountsMemorizationMin = 0;
+
+export const listEducatorStudentsResponseStudentsItemMasteryCountsRecognitionMin = 0;
+
+export const listEducatorStudentsResponseStudentsItemMasteryCountsComprehensionMin = 0;
+
+export const listEducatorStudentsResponseStudentsItemMasteryCountsApplicationMin = 0;
+
+export const listEducatorStudentsResponseStudentsItemMasteryCountsMasteryMin = 0;
+
+
+
+export const ListEducatorStudentsResponse = zod.object({
+  "students": zod.array(zod.object({
+  "studentId": zod.string().uuid(),
+  "displayName": zod.string(),
+  "gapCount": zod.number().int().min(listEducatorStudentsResponseStudentsItemGapCountMin).describe('Open gap entries in the student\'s learning record.'),
+  "masteryCounts": zod.object({
+  "memorization": zod.number().int().min(listEducatorStudentsResponseStudentsItemMasteryCountsMemorizationMin),
+  "recognition": zod.number().int().min(listEducatorStudentsResponseStudentsItemMasteryCountsRecognitionMin),
+  "comprehension": zod.number().int().min(listEducatorStudentsResponseStudentsItemMasteryCountsComprehensionMin),
+  "application": zod.number().int().min(listEducatorStudentsResponseStudentsItemMasteryCountsApplicationMin),
+  "mastery": zod.number().int().min(listEducatorStudentsResponseStudentsItemMasteryCountsMasteryMin)
+}).describe('Assessments per mastery level — evidence-backed counts for the educator rollup.'),
+  "lastActiveAt": zod.coerce.date().nullable()
+}).describe('Per-student rollup for the educator dashboard (spec §6.10).'))
+})
+
+
+/**
+ * The authenticated user's accessibility settings (spec §6.8), created with product defaults for the Deaf/HoH-first audience — captions on, TTS off. No diagnosis gate exists; any user sets any preference.
+ * @summary Get the caller's accessibility preferences
+ */
+export const getAccessibilityPrefsResponseBreakIntervalMinutesMax = 240;
+
+
+
+export const GetAccessibilityPrefsResponse = zod.object({
+  "id": zod.string().uuid(),
+  "userId": zod.string().uuid(),
+  "ttsEnabled": zod.boolean(),
+  "captionsEnabled": zod.boolean(),
+  "highContrast": zod.boolean(),
+  "textSize": zod.enum(['small', 'medium', 'large', 'xlarge']),
+  "reducedMotion": zod.boolean(),
+  "aacInputEnabled": zod.boolean(),
+  "allowBreaks": zod.boolean(),
+  "breakIntervalMinutes": zod.number().int().min(1).max(getAccessibilityPrefsResponseBreakIntervalMinutesMax),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('Per-user accessibility settings (spec §6.8) — no diagnosis gate; any user sets any preference. Keyboard navigation and screen-reader labels are always-on platform behavior, not preferences.')
+
+
+/**
+ * Partial update applied app-wide (spec §6.8). Break interval must stay within 1–240 minutes (mirrors the DB check).
+ * @summary Update the caller's accessibility preferences
+ */
+export const updateAccessibilityPrefsBodyBreakIntervalMinutesMax = 240;
+
+
+
+export const UpdateAccessibilityPrefsBody = zod.object({
+  "ttsEnabled": zod.boolean().optional(),
+  "captionsEnabled": zod.boolean().optional(),
+  "highContrast": zod.boolean().optional(),
+  "textSize": zod.enum(['small', 'medium', 'large', 'xlarge']).optional(),
+  "reducedMotion": zod.boolean().optional(),
+  "aacInputEnabled": zod.boolean().optional(),
+  "allowBreaks": zod.boolean().optional(),
+  "breakIntervalMinutes": zod.number().int().min(1).max(updateAccessibilityPrefsBodyBreakIntervalMinutesMax).optional()
+})
+
+export const updateAccessibilityPrefsResponseBreakIntervalMinutesMax = 240;
+
+
+
+export const UpdateAccessibilityPrefsResponse = zod.object({
+  "id": zod.string().uuid(),
+  "userId": zod.string().uuid(),
+  "ttsEnabled": zod.boolean(),
+  "captionsEnabled": zod.boolean(),
+  "highContrast": zod.boolean(),
+  "textSize": zod.enum(['small', 'medium', 'large', 'xlarge']),
+  "reducedMotion": zod.boolean(),
+  "aacInputEnabled": zod.boolean(),
+  "allowBreaks": zod.boolean(),
+  "breakIntervalMinutes": zod.number().int().min(1).max(updateAccessibilityPrefsResponseBreakIntervalMinutesMax),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('Per-user accessibility settings (spec §6.8) — no diagnosis gate; any user sets any preference. Keyboard navigation and screen-reader labels are always-on platform behavior, not preferences.')
+
+
+/**
+ * The parent dashboard roster (spec §6.9): every guardian link the caller owns, resolved to the student's minimal identity, with the link's current status and whether the consent trail currently grants dashboard access. A pending or revoked link is listed — honestly — but grants nothing.
+ * @summary The caller's linked students
+ */
+export const ListParentStudentsResponse = zod.object({
+  "students": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string(),
+  "linkStatus": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "accessGranted": zod.boolean().describe('Whether the consent trail currently grants dashboard access for this link — a granted link backed by an unrevoked guardian_access consent. Pending and revoked links surface with false.')
+}).describe('One roster entry for the parent dashboard (spec §6.9).'))
+})
+
+
+/**
+ * Mastery levels per subject for the parent dashboard (spec §6.9) — derived from stored, non-revoked assessments only, never invented. The consent trail is checked server-side on every call; access ends the moment consent is revoked.
+ * @summary Evidence-backed mastery overview for a linked student
+ */
+export const GetParentMasteryOverviewParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const getParentMasteryOverviewResponseSubjectsItemCountsMemorizationMin = 0;
+
+export const getParentMasteryOverviewResponseSubjectsItemCountsRecognitionMin = 0;
+
+export const getParentMasteryOverviewResponseSubjectsItemCountsComprehensionMin = 0;
+
+export const getParentMasteryOverviewResponseSubjectsItemCountsApplicationMin = 0;
+
+export const getParentMasteryOverviewResponseSubjectsItemCountsMasteryMin = 0;
+
+export const getParentMasteryOverviewResponseSubjectsItemEvidenceCountMin = 0;
+
+
+
+export const GetParentMasteryOverviewResponse = zod.object({
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.'),
+  "subjects": zod.array(zod.object({
+  "subject": zod.string(),
+  "counts": zod.object({
+  "memorization": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemCountsMemorizationMin),
+  "recognition": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemCountsRecognitionMin),
+  "comprehension": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemCountsComprehensionMin),
+  "application": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemCountsApplicationMin),
+  "mastery": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemCountsMasteryMin)
+}).describe('Assessments per mastery level — evidence-backed counts for the educator rollup.'),
+  "evidenceCount": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemEvidenceCountMin).describe('Non-revoked assessment rows behind this subject\'s overview.'),
+  "highestLevel": zod.union([zod.enum(['memorization', 'recognition', 'comprehension', 'application', 'mastery']).describe('What the learner has demonstrated (spec §5, §6.3). Comprehension and above require independent application evidence.'),zod.null()]).describe('The highest rung with at least one non-revoked evidence row; null when the subject has none yet.'),
+  "lastEvidenceAt": zod.coerce.date().nullable()
+}).describe('Evidence-backed mastery for one subject (spec §6.9). Levels come from stored, non-revoked assessments only; highestLevel is the highest rung with at least one such row — never an average, never an invention.'))
+})
+
+
+/**
+ * Session metadata for the parent dashboard (spec §6.9): stamps, status, and turn counts, newest activity first. Deliberately carries no turn content — the parent dashboard renders summaries, never transcripts.
+ * @summary Session summaries for a linked student
+ */
+export const ListParentSessionSummariesParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const listParentSessionSummariesQueryLimitDefault = 20;
+export const listParentSessionSummariesQueryLimitMax = 200;
+
+
+
+export const ListParentSessionSummariesQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listParentSessionSummariesQueryLimitMax).default(listParentSessionSummariesQueryLimitDefault)
+})
+
+export const listParentSessionSummariesResponseSessionsItemTurnCountMin = 0;
+
+
+
+export const ListParentSessionSummariesResponse = zod.object({
+  "sessions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string().nullable(),
+  "status": zod.enum(['active', 'completed']),
+  "startedAt": zod.coerce.date(),
+  "lastTurnAt": zod.string().nullable(),
+  "endedAt": zod.string().nullable(),
+  "turnCount": zod.number().int().min(listParentSessionSummariesResponseSessionsItemTurnCountMin).describe('How many turns the session holds — the pulse of engagement, never its content.')
+}).describe('One session as the parent dashboard renders it (spec §6.9) — stamps, status, and turn counts only. No turn content exists on this shape by design: parents see summaries, never transcripts.'))
+})
+
+
+/**
+ * Deterministic activity suggestions derived from the student's own record (spec §6.9): practice for gap subjects, extension for evidenced mastery, and honest first steps when no evidence exists — each reason quoting the record that motivated it. Inert by design: nothing here changes the student's platform state.
+ * @summary Recommended at-home activities for a linked student
+ */
+export const ListAtHomeActivitiesParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const ListAtHomeActivitiesResponse = zod.object({
+  "activities": zod.array(zod.object({
+  "id": zod.string().describe('Stable derivation id (kind + source record id), not a resource UUID.'),
+  "title": zod.string(),
+  "reason": zod.string().describe('Why the record suggests this — quoted, audit-able, never invented.'),
+  "subject": zod.string().nullable()
+}).describe('One at-home activity suggestion (spec §6.9), derived deterministically from the student\'s own evidence record; reason quotes the motivating record. Inert: nothing here mutates the student\'s platform state.'))
+})
+
+
+/**
+ * The authenticated educator's links to students with their status and the student's basic identity (spec §6.10). Admins may list all links to action grant/revoke requests. A pending or revoked link grants no access to learning data.
+ * @summary List the caller's educator links
+ */
+export const ListEducatorLinksResponse = zod.object({
+  "links": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.')
+}).describe('An educator link plus the linked student\'s basic identity.'))
+})
+
+
+/**
+ * Requests an educator link by the student's account email. The link starts pending and grants nothing until an admin grants it (spec §6.1 — interpretation is not authorization; the recorded grant is the human decision). Idempotent: requesting an existing pair returns that link.
+ * @summary Request an educator link to a student
+ */
+export const CreateEducatorLinkBody = zod.object({
+  "studentEmail": zod.string().email()
+}).describe('Request an educator link by the student\'s account email.')
+
+export const CreateEducatorLinkResponse = zod.object({
+  "id": zod.string().uuid(),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.')
+}).describe('An educator link plus the linked student\'s basic identity.')
+
+
+/**
+ * The admin's recorded grant — the human authorization decision that gives the educator view_progress, assign_work, and configure_supports on the linked student (spec §6.10). Audited. A revoked link stays revoked; request a new link instead.
+ * @summary Grant an educator link (admin only)
+ */
+export const GrantEducatorLinkParams = zod.object({
+  "linkId": zod.coerce.string().uuid()
+})
+
+export const GrantEducatorLinkResponse = zod.object({
+  "id": zod.string().uuid(),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.')
+}).describe('An educator link plus the linked student\'s basic identity.')
+
+
+/**
+ * Revokes the link — an admin any link, an educator their own (spec §6.10). Access ends immediately and the decision is audited.
+ * @summary Revoke an educator link
+ */
+export const RevokeEducatorLinkParams = zod.object({
+  "linkId": zod.coerce.string().uuid()
+})
+
+export const RevokeEducatorLinkResponse = zod.object({
+  "id": zod.string().uuid(),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "status": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.')
+}).describe('An educator link plus the linked student\'s basic identity.')
+
+
+/**
+ * The authenticated educator's assigned work with each student's display name (spec §6.10).
+ * @summary List the educator's assignments
+ */
+export const listEducatorAssignmentsResponseAssignmentsItemTitleMax = 200;
+
+export const listEducatorAssignmentsResponseAssignmentsItemDetailMax = 2000;
+
+export const listEducatorAssignmentsResponseAssignmentsItemSubjectMax = 120;
+
+
+
+export const ListEducatorAssignmentsResponse = zod.object({
+  "assignments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "title": zod.string().max(listEducatorAssignmentsResponseAssignmentsItemTitleMax),
+  "detail": zod.string().max(listEducatorAssignmentsResponseAssignmentsItemDetailMax).nullable(),
+  "subject": zod.string().max(listEducatorAssignmentsResponseAssignmentsItemSubjectMax).nullable(),
+  "status": zod.enum(['open', 'completed']).describe('An educator assignment\'s lifecycle state (spec §6.10).'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('Work an educator assigns to a linked student (spec §6.10). Never touches the evidence-governed learning record.'))
+})
+
+
+/**
+ * Creates an assignment for a student the educator holds a granted link to (spec §6.10). The authorization boundary decides scope — assignments never touch the evidence-governed learning record.
+ * @summary Assign work to a linked student
+ */
+export const createEducatorAssignmentBodyTitleMax = 200;
+
+export const createEducatorAssignmentBodyDetailMax = 2000;
+
+export const createEducatorAssignmentBodySubjectMax = 120;
+
+
+
+export const CreateEducatorAssignmentBody = zod.object({
+  "studentId": zod.string().uuid(),
+  "title": zod.string().min(1).max(createEducatorAssignmentBodyTitleMax),
+  "detail": zod.string().max(createEducatorAssignmentBodyDetailMax).optional(),
+  "subject": zod.string().max(createEducatorAssignmentBodySubjectMax).optional()
+}).describe('Create an assignment for a linked student.')
+
+export const createEducatorAssignmentResponseTitleMax = 200;
+
+export const createEducatorAssignmentResponseDetailMax = 2000;
+
+export const createEducatorAssignmentResponseSubjectMax = 120;
+
+
+
+export const CreateEducatorAssignmentResponse = zod.object({
+  "id": zod.string().uuid(),
+  "educatorId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "title": zod.string().max(createEducatorAssignmentResponseTitleMax),
+  "detail": zod.string().max(createEducatorAssignmentResponseDetailMax).nullable(),
+  "subject": zod.string().max(createEducatorAssignmentResponseSubjectMax).nullable(),
+  "status": zod.enum(['open', 'completed']).describe('An educator assignment\'s lifecycle state (spec §6.10).'),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).describe('Work an educator assigns to a linked student (spec §6.10). Never touches the evidence-governed learning record.')
+
+
+/**
+ * The student's configured classroom supports (spec §6.10). Reading requires a granted educator link; an unsaved plan reads as empty.
+ * @summary Read a linked student's support plan
+ */
+export const GetEducatorSupportsParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const getEducatorSupportsResponseSupportsItemMax = 120;
+
+export const getEducatorSupportsResponseSupportsMax = 50;
+
+export const getEducatorSupportsResponseNotesMax = 2000;
+
+
+
+export const GetEducatorSupportsResponse = zod.object({
+  "studentId": zod.string().uuid(),
+  "supports": zod.array(zod.string().max(getEducatorSupportsResponseSupportsItemMax)).max(getEducatorSupportsResponseSupportsMax).describe('Non-diagnostic support labels (e.g. \"extra processing time\").'),
+  "notes": zod.string().max(getEducatorSupportsResponseNotesMax).nullable(),
+  "updatedBy": zod.string().uuid().nullable().describe('The human who last changed the plan.'),
+  "updatedAt": zod.coerce.date().nullable()
+}).describe('A student\'s configured classroom supports (spec §6.10). Deliberately non-diagnostic — supports describe what helps, never what a student \"has.\"')
+
+
+/**
+ * Replaces the student's support plan with the submitted non-diagnostic supports and notes; updatedBy records the human behind the change (spec §6.10). Audited.
+ * @summary Configure a linked student's supports
+ */
+export const UpdateEducatorSupportsParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const updateEducatorSupportsBodySupportsItemMax = 120;
+
+export const updateEducatorSupportsBodySupportsMax = 50;
+
+export const updateEducatorSupportsBodyNotesMax = 2000;
+
+
+
+export const UpdateEducatorSupportsBody = zod.object({
+  "supports": zod.array(zod.string().min(1).max(updateEducatorSupportsBodySupportsItemMax)).max(updateEducatorSupportsBodySupportsMax),
+  "notes": zod.string().max(updateEducatorSupportsBodyNotesMax).nullish()
+}).describe('Replace a linked student\'s support plan.')
+
+export const updateEducatorSupportsResponseSupportsItemMax = 120;
+
+export const updateEducatorSupportsResponseSupportsMax = 50;
+
+export const updateEducatorSupportsResponseNotesMax = 2000;
+
+
+
+export const UpdateEducatorSupportsResponse = zod.object({
+  "studentId": zod.string().uuid(),
+  "supports": zod.array(zod.string().max(updateEducatorSupportsResponseSupportsItemMax)).max(updateEducatorSupportsResponseSupportsMax).describe('Non-diagnostic support labels (e.g. \"extra processing time\").'),
+  "notes": zod.string().max(updateEducatorSupportsResponseNotesMax).nullable(),
+  "updatedBy": zod.string().uuid().nullable().describe('The human who last changed the plan.'),
+  "updatedAt": zod.coerce.date().nullable()
+}).describe('A student\'s configured classroom supports (spec §6.10). Deliberately non-diagnostic — supports describe what helps, never what a student \"has.\"')
 
 

@@ -61,10 +61,10 @@ export default defineConfig({
           // parse `catalog:` versions and would otherwise emit zod-v4 output.
           version: 3,
           coerce: {
-            query: ['boolean', 'number', 'string'],
-            param: ['boolean', 'number', 'string'],
-            body: ['bigint', 'date'],
-            response: ['bigint', 'date'],
+            query: ["boolean", "number", "string", "date"],
+            param: ["boolean", "number", "string"],
+            body: ["bigint", "date"],
+            response: ["bigint", "date"],
           },
         },
         useDates: true,

@@ -88,12 +88,21 @@ export class SessionStore {
     session.pendingAction = pending;
   }
 
-  /** Drop a pending proposal without executing it (learner declined). */
-  clearPendingAction(session: TutorSession): PendingAction | null {
+  /**
+   * Read and clear the pending proposal in one step (atomic in-memory) —
+   * the consumer the shared Sentinel boundary resolves against, whatever the
+   * human's decision turns out to be.
+   */
+  takePending(session: TutorSession): PendingAction | null {
     const pending = session.pendingAction;
     session.pendingAction = null;
-    session.lastActiveAt = this.now();
+    if (pending !== null) session.lastActiveAt = this.now();
     return pending;
+  }
+
+  /** Drop a pending proposal without executing it (learner declined). */
+  clearPendingAction(session: TutorSession): PendingAction | null {
+    return this.takePending(session);
   }
 
   /**
@@ -103,11 +112,8 @@ export class SessionStore {
    * inside a turn never reaches this.
    */
   consumeConfirmed(session: TutorSession, accepted: boolean): PendingAction | null {
-    if (!accepted || session.pendingAction === null) return null;
-    const pending = session.pendingAction;
-    session.pendingAction = null; // exactly-once: gone even if execution fails
-    session.lastActiveAt = this.now();
-    return pending;
+    if (!accepted) return null;
+    return this.takePending(session); // exactly-once: gone even if execution fails
   }
 
   dispose(): void {

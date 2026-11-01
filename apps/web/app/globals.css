@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/*
+ * PRIMER design tokens (platform spec, section 6.7).
+ *
+ * Soft lavender/white backgrounds, deep-purple accents, rounded cards,
+ * friendly typography, and mascot-yellow as the secondary accent. The names
+ * are the brand's, not a framework's: dashboard waves compose bg-background,
+ * bg-lavender, bg-primary, bg-mascot — the whole palette lives here.
+ */
+@theme {
+  /*
+   * Friendly, rounded typography. The brand font is not chosen yet; the stack
+   * prefers locally-installed rounded faces and degrades to the system sans.
+   * This token is the single place to swap in the brand font later.
+   */
+  --font-sans: "Nunito", "Quicksand", ui-rounded, "SF Pro Rounded", "Segoe UI",
+    system-ui, sans-serif;
+
+  /* Backgrounds: soft lavender-tinted whites. */
+  --color-background: #f9f8ff;
+  --color-lavender-soft: #f4f1ff;
+  --color-lavender: #ece7fd;
+
+  /* Primary accent: deep purple. */
+  --color-primary: #5b21b6;
+  --color-primary-strong: #4c1d95;
+  --color-primary-soft: #ede9fe;
+  --color-on-primary: #ffffff;
+
+  /* Secondary accent: mascot yellow. */
+  --color-mascot: #fbbf24;
+  --color-mascot-soft: #fef3c7;
+
+  /* Text. */
+  --color-ink: #2b2440;
+  --color-ink-soft: #6f6a85;
+
+  /* Cards, borders, and inputs. */
+  --color-card: #ffffff;
+  --color-line: #e6e1f5;
+
+  /* Feedback. */
+  --color-danger: #dc2626;
+  --color-success: #15803d;
+
+  /* Focus ring: visible on both lavender and white. */
+  --color-ring: #7c3aed;
+
+  /* Rounded cards. */
+  --radius-card: 1.25rem;
+}
+
+/*
+ * Accessibility preference hooks (spec §6.8). The AccessibilityProvider sets
+ * data-* attributes on <html> from the learner's stored prefs; the CSS below
+ * is the app-wide application. Nothing here is per-component — every surface
+ * inherits it by rendering inside the root layout.
+ */
+
+/* Text size: rem-based scaling, so every token-sized text follows. */
+html[data-text-size="small"] {
+  font-size: 87.5%;
+}
+html[data-text-size="medium"] {
+  font-size: 100%;
+}
+html[data-text-size="large"] {
+  font-size: 112.5%;
+}
+html[data-text-size="xlarge"] {
+  font-size: 125%;
+}
+
+/* High contrast: darker ink, firmer lines and borders, stronger ring. */
+html[data-contrast="high"] {
+  --color-ink: #161022;
+  --color-ink-soft: #454055;
+  --color-line: #8f83b8;
+  --color-ring: #4c1d95;
+}
+html[data-contrast="high"] .border,
+html[data-contrast="high"] [class*="border-line"] {
+  border-color: var(--color-line);
+}
+
+/* Reduced motion: from the learner's prefs or their OS setting — calm either
+   way, on every surface, without per-component opt-ins. */
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* AAC-friendly input: larger phrase buttons when the learner opts in. */
+html[data-aac-input="on"] .quick-response-button {
+  min-height: 3.75rem;
+  font-size: 1.125rem;
+  padding-block: 1rem;
+}
+
+/* Skip link: invisible until keyboard-focused, then unmistakable. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0 1rem 0;
+  font-weight: 700;
+}
+.skip-link:focus {
+  left: 0;
+}

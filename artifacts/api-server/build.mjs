@@ -14,8 +14,13 @@ async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
 
+  const entryPoints = [path.resolve(artifactDir, "src/index.ts")];
+  // The retention sweep ships as its own entry point: an unattended
+  // cron/K8s CronJob runs it instead of the server process.
+  entryPoints.push(path.resolve(artifactDir, "src/privacy/retention-sweep.ts"));
+
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints,
     platform: "node",
     bundle: true,
     format: "esm",
@@ -35,6 +40,7 @@ async function buildAll() {
       "canvas",
       "bcrypt",
       "argon2",
+      "@node-rs/argon2",
       "fsevents",
       "re2",
       "farmhash",

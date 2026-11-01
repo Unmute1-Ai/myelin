@@ -22,6 +22,12 @@ export interface LessonStep {
   concept: string;
   /** Short spoken explanation — voice output only. */
   spoken: string;
+  /**
+   * A second presentation of the same step: a different worked example or
+   * framing, used when the learner struggles or asks to hear it differently.
+   * Optional so custom lessons can omit it (the original teaching is reused).
+   */
+  altTeaching?: string;
   /** Full teaching content, including the worked example — on screen, not in the voice. */
   teaching: string;
   check: LessonCheck;

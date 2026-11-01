@@ -5,13 +5,20 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./password": "./src/password.ts",
+    "./ssl": "./src/ssl.ts"
   },
   "scripts": {
-    "push": "drizzle-kit push --config ./drizzle.config.ts",
-    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
+    "db:generate": "drizzle-kit generate --config ./drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config ./drizzle.config.ts",
+    "db:push": "drizzle-kit push --config ./drizzle.config.ts",
+    "db:push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
+    "db:seed": "tsx src/seed.ts",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.2",
     "drizzle-orm": "catalog:",
     "drizzle-zod": "^0.8.3",
     "pg": "^8.22.0",
@@ -20,6 +27,8 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@types/pg": "^8.20.0",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.10",
+    "tsx": "catalog:",
+    "vitest": "^5.0.5"
   }
 }
