@@ -49,7 +49,14 @@ export function FamilyRosterCard({
                       student.accessGranted ? "bg-primary-soft text-ink" : "bg-lavender text-ink-soft"
                     }`}
                   >
-                    {LINK_STATUS_LABELS[student.linkStatus]}
+                    {/* Access is the truth the badge tells: a granted link
+                        without the recorded consent authority shows as
+                        consent-pending, never as connected. */}
+                    {student.accessGranted
+                      ? "Connected"
+                      : student.linkStatus === "granted"
+                        ? "Consent pending"
+                        : LINK_STATUS_LABELS[student.linkStatus]}
                   </span>
                 </span>
               </button>

@@ -52,6 +52,19 @@ describe("FamilyRosterCard", () => {
     expect(screen.getByText("Consent revoked")).toBeInTheDocument();
   });
 
+  it("never calls a granted-but-consentless link connected", () => {
+    render(
+      <FamilyRosterCard
+        students={[makeParentStudent({ linkStatus: "granted", accessGranted: false })]}
+        selectedStudentId={null}
+        onSelect={() => undefined}
+      />,
+    );
+    expect(screen.getByText("Consent pending")).toBeInTheDocument();
+    expect(screen.queryByText("Connected")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Sam/ })).toBeDisabled();
+  });
+
   it("selects a learner through the callback", async () => {
     const onSelect = vi.fn();
     render(
