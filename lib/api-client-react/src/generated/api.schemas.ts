@@ -3,7 +3,7 @@
  * Do not edit manually.
  * Api
  * API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 export interface HealthStatus {
   status: string;
@@ -85,4 +85,568 @@ export interface TutorError {
   code: TutorErrorCode;
   message: string;
 }
+
+/**
+ * Platform role (spec §5).
+ */
+export type UserRole = typeof UserRole[keyof typeof UserRole];
+
+
+export const UserRole = {
+  student: 'student',
+  parent: 'parent',
+  educator: 'educator',
+  admin: 'admin',
+} as const;
+
+/**
+ * What the learner has demonstrated (spec §5, §6.3). Comprehension and above require independent application evidence.
+ */
+export type MasteryLevel = typeof MasteryLevel[keyof typeof MasteryLevel];
+
+
+export const MasteryLevel = {
+  memorization: 'memorization',
+  recognition: 'recognition',
+  comprehension: 'comprehension',
+  application: 'application',
+  mastery: 'mastery',
+} as const;
+
+/**
+ * What an assessment's evidence actually demonstrates. A recalled answer (recall) only supports memorization/recognition; comprehension and above require application, explanation, or transfer (spec §6.3).
+ */
+export type AssessmentEvidenceKind = typeof AssessmentEvidenceKind[keyof typeof AssessmentEvidenceKind];
+
+
+export const AssessmentEvidenceKind = {
+  recall: 'recall',
+  application: 'application',
+  explanation: 'explanation',
+  transfer: 'transfer',
+} as const;
+
+export type ConsentType = typeof ConsentType[keyof typeof ConsentType];
+
+
+export const ConsentType = {
+  guardian_access: 'guardian_access',
+  learning_data: 'learning_data',
+} as const;
+
+/**
+ * Current state of a guardian link; `consents` is the record trail behind it.
+ */
+export type ConsentStatus = typeof ConsentStatus[keyof typeof ConsentStatus];
+
+
+export const ConsentStatus = {
+  pending: 'pending',
+  granted: 'granted',
+  revoked: 'revoked',
+} as const;
+
+export type SessionStatus = typeof SessionStatus[keyof typeof SessionStatus];
+
+
+export const SessionStatus = {
+  active: 'active',
+  completed: 'completed',
+} as const;
+
+export type TurnAuthor = typeof TurnAuthor[keyof typeof TurnAuthor];
+
+
+export const TurnAuthor = {
+  student: 'student',
+  tutor: 'tutor',
+} as const;
+
+/**
+ * The learning record's entry kinds (spec §6.2).
+ */
+export type ProfileEntryKind = typeof ProfileEntryKind[keyof typeof ProfileEntryKind];
+
+
+export const ProfileEntryKind = {
+  gap: 'gap',
+  misconception: 'misconception',
+  successful_approach: 'successful_approach',
+  preference: 'preference',
+  strategy_change: 'strategy_change',
+} as const;
+
+/**
+ * Timeline event kinds for the dashboards (spec §5).
+ */
+export type ProgressEventKind = typeof ProgressEventKind[keyof typeof ProgressEventKind];
+
+
+export const ProgressEventKind = {
+  assessment_recorded: 'assessment_recorded',
+  mastery_changed: 'mastery_changed',
+  strategy_changed: 'strategy_changed',
+  session_completed: 'session_completed',
+  milestone_reached: 'milestone_reached',
+} as const;
+
+/**
+ * Authorization outcome for a consequential action (spec §6.11).
+ */
+export type AuditDecision = typeof AuditDecision[keyof typeof AuditDecision];
+
+
+export const AuditDecision = {
+  allowed: 'allowed',
+  denied: 'denied',
+} as const;
+
+export type TextSize = typeof TextSize[keyof typeof TextSize];
+
+
+export const TextSize = {
+  small: 'small',
+  medium: 'medium',
+  large: 'large',
+  xlarge: 'xlarge',
+} as const;
+
+/**
+ * Error codes for the platform (v2) surface.
+ */
+export type PlatformErrorCode = typeof PlatformErrorCode[keyof typeof PlatformErrorCode];
+
+
+export const PlatformErrorCode = {
+  unauthorized: 'unauthorized',
+  forbidden: 'forbidden',
+  invalid_request: 'invalid_request',
+  not_found: 'not_found',
+  conflict: 'conflict',
+  consent_required: 'consent_required',
+  provider_error: 'provider_error',
+  rate_limited: 'rate_limited',
+} as const;
+
+/**
+ * Error body for every v2 error response. Never echoes payload values.
+ */
+export interface PlatformError {
+  code: PlatformErrorCode;
+  message: string;
+}
+
+/**
+ * Account for any role. Deliberately excludes the password hash.
+ */
+export interface User {
+  id: string;
+  email: string;
+  role: UserRole;
+  displayName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Minimal student identity shown in parent/educator views.
+ */
+export interface StudentRef {
+  id: string;
+  email: string;
+  displayName: string;
+}
+
+/**
+ * Parent ↔ child relationship; access requires a granted link (spec §5).
+ */
+export interface GuardianLink {
+  id: string;
+  parentId: string;
+  studentId: string;
+  status: ConsentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * A guardian link plus the linked student's basic identity.
+ */
+export interface GuardianLinkDetails {
+  id: string;
+  parentId: string;
+  studentId: string;
+  status: ConsentStatus;
+  createdAt: string;
+  updatedAt: string;
+  student: StudentRef;
+}
+
+/**
+ * Explicit consent record behind a guardian link (spec §5) — type, granted/revoked at, version of terms. Append-only: revocation stamps revokedAt, it never rewrites the grant.
+ */
+export interface Consent {
+  id: string;
+  guardianLinkId: string;
+  type: ConsentType;
+  grantedAt: string;
+  /** @nullable */
+  revokedAt: string | null;
+  termsVersion: string;
+  createdAt: string;
+}
+
+/**
+ * One per student (spec §5, §6.2). Subjects, pacing, and preferredStrategy are explicit choices — preferredStrategy always wins strategy selection (spec §6.4).
+ */
+export interface LearningProfile {
+  id: string;
+  studentId: string;
+  /** Explicit subject choices; open vocabulary. */
+  subjects: string[];
+  /**
+     * Explicit student strategy pick (e.g. "visual"); open vocabulary so strategy modules can grow without a migration.
+     * @nullable
+     */
+  preferredStrategy: string | null;
+  /** Explicit pacing choice; open vocabulary, default "standard". */
+  pacing: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * One row of the transparent learning record (spec §6.2). Gaps and misconceptions reference assessment evidence; preferences are explicit-only — no diagnosis field exists anywhere (spec §7.10).
+ */
+export interface ProfileEntry {
+  id: string;
+  profileId: string;
+  kind: ProfileEntryKind;
+  /** @nullable */
+  subject: string | null;
+  detail: string;
+  /**
+     * Human-readable transparency note for strategy changes, surfaced back to the learner (spec §6.2).
+     * @nullable
+     */
+  whyChanged: string | null;
+  /** @nullable */
+  sourceAssessmentId: string | null;
+  /** @nullable */
+  sourceTurnId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Profile with its full entry record (spec §6.2).
+ */
+export interface StudentProfile {
+  profile: LearningProfile;
+  entries: ProfileEntry[];
+}
+
+/**
+ * A persistent tutoring session (spec §5) — survives across visits.
+ */
+export interface TutoringSession {
+  id: string;
+  studentId: string;
+  /** @nullable */
+  title: string | null;
+  status: SessionStatus;
+  startedAt: string;
+  /**
+     * Powers the continue-learning resume ordering.
+     * @nullable
+     */
+  lastTurnAt: string | null;
+  /** @nullable */
+  endedAt: string | null;
+}
+
+/**
+ * One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4).
+ */
+export interface SessionTurn {
+  id: string;
+  sessionId: string;
+  /**
+     * Ordering within the session; unique per session.
+     * @minimum 0
+     */
+  seq: number;
+  author: TurnAuthor;
+  content: string;
+  /** @nullable */
+  strategyId: string | null;
+  createdAt: string;
+}
+
+/**
+ * Mastery evidence row (spec §5, §6.3). The pairing rule — recall only supports memorization/recognition; comprehension and above require application, explanation, or transfer — is enforced by the DB CHECK and the assessment engine at the write boundary; this DTO mirrors the stored rows either way.
+ */
+export interface Assessment {
+  id: string;
+  studentId: string;
+  /** @nullable */
+  sessionId: string | null;
+  /** @nullable */
+  turnId: string | null;
+  subject: string;
+  /** @nullable */
+  skill: string | null;
+  level: MasteryLevel;
+  evidenceKind: AssessmentEvidenceKind;
+  /** The human-readable evidence behind the classification. */
+  evidenceNote: string;
+  createdAt: string;
+}
+
+/**
+ * Kind-specific structured detail; open content.
+ */
+export type ProgressEventPayload = { [key: string]: unknown };
+
+/**
+ * One append-only timeline row (spec §5) — never updated or deleted.
+ */
+export interface ProgressEvent {
+  id: string;
+  studentId: string;
+  /** @nullable */
+  actorId: string | null;
+  /** @nullable */
+  sessionId: string | null;
+  kind: ProgressEventKind;
+  summary: string;
+  /** Kind-specific structured detail; open content. */
+  payload: ProgressEventPayload;
+  createdAt: string;
+}
+
+/**
+ * Per-user accessibility settings (spec §6.8) — no diagnosis gate; any user sets any preference. Keyboard navigation and screen-reader labels are always-on platform behavior, not preferences.
+ */
+export interface AccessibilityPrefs {
+  id: string;
+  userId: string;
+  ttsEnabled: boolean;
+  captionsEnabled: boolean;
+  highContrast: boolean;
+  textSize: TextSize;
+  reducedMotion: boolean;
+  aacInputEnabled: boolean;
+  allowBreaks: boolean;
+  /**
+     * @minimum 1
+     * @maximum 240
+     */
+  breakIntervalMinutes: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * The evidence behind the allow/deny decision.
+ */
+export type AuditLogAuthorizationEvidence = { [key: string]: unknown };
+
+export type AuditLogMetadata = { [key: string]: unknown };
+
+/**
+ * One append-only audit trail row (spec §6.11) — who, what, on which resource, allowed or denied, and the authorization evidence behind the decision. Shared vocabulary for the platform; exposure is admin-scoped.
+ */
+export interface AuditLog {
+  id: string;
+  /** @nullable */
+  actorId: string | null;
+  /** Open-vocabulary action name (e.g. "view_progress"). */
+  action: string;
+  resourceType: string;
+  /** @nullable */
+  resourceId: string | null;
+  decision: AuditDecision;
+  /** The evidence behind the allow/deny decision. */
+  authorizationEvidence: AuditLogAuthorizationEvidence;
+  metadata: AuditLogMetadata;
+  createdAt: string;
+}
+
+/**
+ * Explicit profile choices only — never a diagnosis or disability value.
+ */
+export interface UpdateLearningProfileRequest {
+  subjects?: string[];
+  /** @nullable */
+  preferredStrategy?: string | null;
+  pacing?: string;
+}
+
+export interface CreateProfileEntryRequest {
+  kind: ProfileEntryKind;
+  subject?: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  detail: string;
+  /** @maxLength 2000 */
+  whyChanged?: string;
+  sourceAssessmentId?: string;
+  sourceTurnId?: string;
+}
+
+export interface CreateSessionRequest {
+  /** @maxLength 200 */
+  title?: string;
+}
+
+export interface PostSessionTurnRequest {
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  content: string;
+}
+
+/**
+ * The stored student turn and tutor reply, plus the adaptive metadata the UI renders. proposedAction is pending until an explicit confirmation — never executed from turn text alone (spec §6.11).
+ */
+export interface SessionTurnExchange {
+  studentTurn: SessionTurn;
+  tutorTurn: SessionTurn;
+  /** Short spoken version of the tutor reply (speech output only); not stored. */
+  spokenReply?: string;
+  /** Action proposed but NOT executed — pending until an explicit confirm. */
+  proposedAction?: TutorProposedAction;
+  /** One-line check rendered verbatim before the action can happen. */
+  checkLine?: string;
+  /** The teaching strategy that produced the tutor turn. */
+  strategyId?: string;
+  /** Human-readable why-this-strategy note (spec §6.2 transparency). */
+  strategyWhy?: string;
+  /** Mastery evidence recorded from this turn, possibly empty. */
+  recordedAssessments: Assessment[];
+}
+
+export interface CreateGuardianLinkRequest {
+  studentEmail: string;
+}
+
+export interface RecordConsentRequest {
+  type: ConsentType;
+  /** @minLength 1 */
+  termsVersion: string;
+}
+
+export interface UpdateAccessibilityPrefsRequest {
+  ttsEnabled?: boolean;
+  captionsEnabled?: boolean;
+  highContrast?: boolean;
+  textSize?: TextSize;
+  reducedMotion?: boolean;
+  aacInputEnabled?: boolean;
+  allowBreaks?: boolean;
+  /**
+     * @minimum 1
+     * @maximum 240
+     */
+  breakIntervalMinutes?: number;
+}
+
+export interface ProfileEntryList {
+  entries: ProfileEntry[];
+}
+
+export interface ProgressEventList {
+  events: ProgressEvent[];
+}
+
+export interface SessionList {
+  sessions: TutoringSession[];
+}
+
+export interface SessionTurnList {
+  turns: SessionTurn[];
+}
+
+export interface GuardianLinkList {
+  links: GuardianLinkDetails[];
+}
+
+/**
+ * Assessments per mastery level — evidence-backed counts for the educator rollup.
+ */
+export interface MasteryCounts {
+  /** @minimum 0 */
+  memorization: number;
+  /** @minimum 0 */
+  recognition: number;
+  /** @minimum 0 */
+  comprehension: number;
+  /** @minimum 0 */
+  application: number;
+  /** @minimum 0 */
+  mastery: number;
+}
+
+/**
+ * Per-student rollup for the educator dashboard (spec §6.10).
+ */
+export interface EducatorStudentSummary {
+  studentId: string;
+  displayName: string;
+  /**
+     * Open gap entries in the student's learning record.
+     * @minimum 0
+     */
+  gapCount: number;
+  masteryCounts: MasteryCounts;
+  /** @nullable */
+  lastActiveAt: string | null;
+}
+
+export interface EducatorClassSummary {
+  students: EducatorStudentSummary[];
+}
+
+export type ListProfileEntriesParams = {
+kind?: ProfileEntryKind;
+};
+
+export type ListProgressEventsParams = {
+kind?: ProgressEventKind;
+/**
+ * Only events created after this timestamp.
+ */
+since?: string;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};
+
+export type ListSessionsParams = {
+status?: SessionStatus;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};
+
+export type ListSessionTurnsParams = {
+/**
+ * Only turns with seq greater than this value.
+ * @minimum 0
+ */
+after?: number;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};
 

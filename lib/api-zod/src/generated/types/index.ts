@@ -3,16 +3,66 @@
  * Do not edit manually.
  * Api
  * API specification
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 
+export * from './accessibilityPrefs';
+export * from './assessment';
+export * from './assessmentEvidenceKind';
+export * from './auditDecision';
+export * from './auditLog';
+export * from './auditLogAuthorizationEvidence';
+export * from './auditLogMetadata';
+export * from './consent';
+export * from './consentStatus';
+export * from './consentType';
+export * from './createGuardianLinkRequest';
+export * from './createProfileEntryRequest';
+export * from './createSessionRequest';
+export * from './educatorClassSummary';
+export * from './educatorStudentSummary';
+export * from './guardianLink';
+export * from './guardianLinkDetails';
+export * from './guardianLinkList';
 export * from './healthStatus';
+export * from './learningProfile';
+export * from './listProfileEntriesParams';
+export * from './listProgressEventsParams';
+export * from './listSessionsParams';
+export * from './listSessionTurnsParams';
+export * from './masteryCounts';
+export * from './masteryLevel';
+export * from './platformError';
+export * from './platformErrorCode';
+export * from './postSessionTurnRequest';
+export * from './profileEntry';
+export * from './profileEntryKind';
+export * from './profileEntryList';
+export * from './progressEvent';
+export * from './progressEventKind';
+export * from './progressEventList';
+export * from './progressEventPayload';
+export * from './recordConsentRequest';
+export * from './sessionList';
+export * from './sessionStatus';
+export * from './sessionTurn';
+export * from './sessionTurnExchange';
+export * from './sessionTurnList';
+export * from './studentProfile';
+export * from './studentRef';
+export * from './textSize';
+export * from './turnAuthor';
 export * from './tutorConfirmRequest';
 export * from './tutorConfirmResponse';
 export * from './tutorError';
 export * from './tutorErrorCode';
+export * from './tutoringSession';
 export * from './tutorProgress';
 export * from './tutorProposedAction';
 export * from './tutorSessionCreated';
 export * from './tutorTurnRequest';
 export * from './tutorTurnResponse';
+export * from './updateAccessibilityPrefsRequest';
+export * from './updateLearningProfileRequest';
+export * from './user';
+export * from './userRole';

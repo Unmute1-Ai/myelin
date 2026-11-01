@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
+  version: 0.2.0
   description: API specification
 servers:
   - url: /api
@@ -11,7 +11,26 @@ tags:
   - name: health
     description: Health operations
   - name: tutor
-    description: Primer tutor session operations
+    description: Primer tutor session operations (MVP demo surface — in-memory sessions)
+  - name: profiles
+    description: >-
+      Learning profiles and the transparent learning record (spec §6.2). The
+      same student-scoped endpoints serve the student (self), a linked parent
+      (consent granted), and an educator — authorization is decided
+      server-side and fails closed.
+  - name: progress
+    description: Append-only progress timeline for the dashboards (spec §5).
+  - name: sessions
+    description: >-
+      Persistent tutoring sessions (spec §5, §6.7) — unlike the MVP /tutor
+      surface, every session and turn is stored in PostgreSQL and survives
+      across sessions.
+  - name: parent
+    description: Guardian links and consent records (spec §6.9). Consent-gated, role-enforced server-side.
+  - name: educator
+    description: Educator class view (spec §6.10). Cannot override the authorization or privacy layers.
+  - name: accessibility
+    description: Per-user accessibility preferences (spec §6.8), applied app-wide.
 paths:
   /healthz:
     get:
@@ -151,6 +170,827 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TutorError"
+  /profiles/{studentId}:
+    get:
+      operationId: getStudentProfile
+      tags: [profiles]
+      summary: Get a student's learning profile
+      description: >-
+        Returns the learning profile with its full transparent entry record
+        (spec §6.2). Accessible by the student (self), a linked parent with
+        granted guardian consent, and an authorized educator; every other
+        caller is denied and audited (spec §6.1, fail-closed).
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The student's profile with entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentProfile"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not allowed for this caller and student (denied + audited)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Student or profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+    patch:
+      operationId: updateLearningProfile
+      tags: [profiles]
+      summary: Update a student's learning profile
+      description: >-
+        Updates explicit profile choices — subjects, preferred strategy,
+        pacing (spec §6.2). The student updates their own profile; educators
+        may configure supports within their authorization scope. Explicit
+        preferences only — the API never accepts or infers a disability or
+        diagnosis value.
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLearningProfileRequest"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LearningProfile"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not allowed for this caller and student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Student or profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /profiles/{studentId}/entries:
+    get:
+      operationId: listProfileEntries
+      tags: [profiles]
+      summary: List a student's profile entries
+      description: >-
+        The transparent learning record — gaps, misconceptions, successful
+        approaches, preferences, and strategy changes (spec §6.2). Entries are
+        written from assessment evidence only; every strategy change carries a
+        human-readable whyChanged note.
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ProfileEntryKind"
+      responses:
+        "200":
+          description: Profile entries, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileEntryList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not allowed for this caller and student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Student or profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+    post:
+      operationId: createProfileEntry
+      tags: [profiles]
+      summary: Record a profile entry
+      description: >-
+        Adds an entry to the learning record. Gap and misconception entries
+        must reference assessment evidence (sourceAssessmentId or sourceTurnId)
+        — evidence refs, not vibes (spec §6.2). Preference entries are
+        explicit-only and never inferred.
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProfileEntryRequest"
+      responses:
+        "201":
+          description: Entry recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileEntry"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not allowed for this caller and student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Student or profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /profiles/{studentId}/entries/{entryId}:
+    delete:
+      operationId: deleteProfileEntry
+      tags: [profiles]
+      summary: Remove a profile entry
+      description: >-
+        The student curates their own record (spec §6.2 — the profile is
+        transparent and editable by the student). Evidence rows behind the
+        entry are never deleted.
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: entryId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Entry removed
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not the student's own profile entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Student, profile, or entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /progress/{studentId}:
+    get:
+      operationId: listProgressEvents
+      tags: [progress]
+      summary: List a student's progress timeline
+      description: >-
+        The append-only timeline the student, parent, and educator dashboards
+        render (spec §5, §6.9, §6.10). Server-side authorization applies per
+        caller; events are returned newest first.
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ProgressEventKind"
+        - name: since
+          in: query
+          required: false
+          description: Only events created after this timestamp.
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Progress events, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgressEventList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not allowed for this caller and student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /sessions:
+    post:
+      operationId: createSession
+      tags: [sessions]
+      summary: Start a tutoring session
+      description: >-
+        Opens a persistent tutoring session for the authenticated student
+        (spec §5). The session — and every turn in it — survives across
+        visits; "continue learning" resumes from lastTurnAt.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutoringSession"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+    get:
+      operationId: listSessions
+      tags: [sessions]
+      summary: List the student's tutoring sessions
+      description: >-
+        The student's sessions, most recently active first — powers the
+        dashboard's recent sessions and continue-learning resume.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/SessionStatus"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Sessions, most recent first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /sessions/{sessionId}:
+    get:
+      operationId: getSession
+      tags: [sessions]
+      summary: Get a tutoring session
+      description: >-
+        One persistent session by id. Accessible by the owning student, a
+        linked parent with granted consent, and an authorized educator.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TutoringSession"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not allowed for this caller and session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+    delete:
+      operationId: deleteSession
+      tags: [sessions]
+      summary: Delete a tutoring session
+      description: >-
+        Removes the session and its turns (cascade). The student's own
+        sessions only; the audit trail keeps the deletion record.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Session deleted
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not the student's own session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /sessions/{sessionId}/turns:
+    get:
+      operationId: listSessionTurns
+      tags: [sessions]
+      summary: List a session's turns
+      description: >-
+        The persisted transcript, ordered by seq — how the live tutor restores
+        context and how parents/educators read session summaries.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: after
+          in: query
+          required: false
+          description: Only turns with seq greater than this value.
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Turns in seq order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTurnList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not allowed for this caller and session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+    post:
+      operationId: postSessionTurn
+      tags: [sessions]
+      summary: Send a learner turn to the tutor
+      description: >-
+        Stores the learner's turn, generates the tutor's reply with a strategy
+        selected from the profile and assessment evidence (spec §6.2, §6.4),
+        and stores both. Consequential actions are never executed here — a
+        proposed action only rides along as pending (spec §6.11, Sentinel);
+        assessments recorded from this turn's evidence are returned, and a
+        correct answer alone can never classify above memorization/recognition
+        (spec §6.3).
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostSessionTurnRequest"
+      responses:
+        "201":
+          description: Both turns recorded, with the tutor's reply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTurnExchange"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not the session's own student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /parent/links:
+    get:
+      operationId: listGuardianLinks
+      tags: [parent]
+      summary: List the parent's guardian links
+      description: >-
+        The authenticated parent's links to students with their consent
+        status (spec §5, §6.9). A parent only ever sees students reachable
+        through a granted link.
+      responses:
+        "200":
+          description: Guardian links with the linked student's basic info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuardianLinkList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Caller is not a parent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+    post:
+      operationId: createGuardianLink
+      tags: [parent]
+      summary: Request a link to a student
+      description: >-
+        Requests a guardian link to a student by their account email. The link
+        starts pending and grants no access until consent is recorded (spec
+        §6.1 — interpretation is not authorization).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGuardianLinkRequest"
+      responses:
+        "201":
+          description: Link created (pending consent)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuardianLinkDetails"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Caller is not a parent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: No student account with that email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "409":
+          description: A link between this parent and student already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /parent/links/{linkId}/consents:
+    post:
+      operationId: recordConsent
+      tags: [parent]
+      summary: Record consent on a guardian link
+      description: >-
+        Records an explicit consent (type and terms version) on the parent's
+        own link and marks the link granted (spec §5, §6.1). Consent is a
+        recorded, versioned fact — never an inference.
+      parameters:
+        - name: linkId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordConsentRequest"
+      responses:
+        "201":
+          description: Consent recorded; the link is now granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Consent"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not the caller's own guardian link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Link not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /consents/{consentId}/revoke:
+    post:
+      operationId: revokeConsent
+      tags: [parent]
+      summary: Revoke a consent record
+      description: >-
+        Stamps revokedAt on the consent record and sets its guardian link back
+        to revoked. Append-only — the grant record is never rewritten (spec
+        §5). Access ends immediately.
+      parameters:
+        - name: consentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Consent revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Consent"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not a consent behind the caller's own links
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Consent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "409":
+          description: Consent is already revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /educator/students:
+    get:
+      operationId: listEducatorStudents
+      tags: [educator]
+      summary: Class rollup for the educator
+      description: >-
+        Per-student gap and mastery summary for the educator dashboard (spec
+        §6.10). Mastery counts come from evidence-backed assessments only;
+        gaps are open profile entries. Drill down via the student-scoped
+        profile and progress endpoints.
+      responses:
+        "200":
+          description: Students with their gap and mastery rollups
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EducatorClassSummary"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Caller is not an educator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /me/accessibility:
+    get:
+      operationId: getAccessibilityPrefs
+      tags: [accessibility]
+      summary: Get the caller's accessibility preferences
+      description: >-
+        The authenticated user's accessibility settings (spec §6.8), created
+        with product defaults for the Deaf/HoH-first audience — captions on,
+        TTS off. No diagnosis gate exists; any user sets any preference.
+      responses:
+        "200":
+          description: Current preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessibilityPrefs"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+    patch:
+      operationId: updateAccessibilityPrefs
+      tags: [accessibility]
+      summary: Update the caller's accessibility preferences
+      description: >-
+        Partial update applied app-wide (spec §6.8). Break interval must stay
+        within 1–240 minutes (mirrors the DB check).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAccessibilityPrefsRequest"
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessibilityPrefs"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
 components:
   schemas:
     HealthStatus:
@@ -270,4 +1110,862 @@ components:
       required:
         - code
         - message
-
+    # ---------------------------------------------------------------------------
+    # Shared enums — mirror lib/db/src/schema/enums.ts exactly.
+    # ---------------------------------------------------------------------------
+    UserRole:
+      type: string
+      description: Platform role (spec §5).
+      enum:
+        - student
+        - parent
+        - educator
+        - admin
+    MasteryLevel:
+      type: string
+      description: >-
+        What the learner has demonstrated (spec §5, §6.3). Comprehension and
+        above require independent application evidence.
+      enum:
+        - memorization
+        - recognition
+        - comprehension
+        - application
+        - mastery
+    AssessmentEvidenceKind:
+      type: string
+      description: >-
+        What an assessment's evidence actually demonstrates. A recalled answer
+        (recall) only supports memorization/recognition; comprehension and
+        above require application, explanation, or transfer (spec §6.3).
+      enum:
+        - recall
+        - application
+        - explanation
+        - transfer
+    ConsentType:
+      type: string
+      enum:
+        - guardian_access
+        - learning_data
+    ConsentStatus:
+      type: string
+      description: Current state of a guardian link; `consents` is the record trail behind it.
+      enum:
+        - pending
+        - granted
+        - revoked
+    SessionStatus:
+      type: string
+      enum:
+        - active
+        - completed
+    TurnAuthor:
+      type: string
+      enum:
+        - student
+        - tutor
+    ProfileEntryKind:
+      type: string
+      description: The learning record's entry kinds (spec §6.2).
+      enum:
+        - gap
+        - misconception
+        - successful_approach
+        - preference
+        - strategy_change
+    ProgressEventKind:
+      type: string
+      description: Timeline event kinds for the dashboards (spec §5).
+      enum:
+        - assessment_recorded
+        - mastery_changed
+        - strategy_changed
+        - session_completed
+        - milestone_reached
+    AuditDecision:
+      type: string
+      description: Authorization outcome for a consequential action (spec §6.11).
+      enum:
+        - allowed
+        - denied
+    TextSize:
+      type: string
+      enum:
+        - small
+        - medium
+        - large
+        - xlarge
+    PlatformErrorCode:
+      type: string
+      description: Error codes for the platform (v2) surface.
+      enum:
+        - unauthorized
+        - forbidden
+        - invalid_request
+        - not_found
+        - conflict
+        - consent_required
+        - provider_error
+        - rate_limited
+    PlatformError:
+      type: object
+      description: Error body for every v2 error response. Never echoes payload values.
+      properties:
+        code:
+          $ref: "#/components/schemas/PlatformErrorCode"
+        message:
+          type: string
+      required:
+        - code
+        - message
+    # ---------------------------------------------------------------------------
+    # Entities — mirror the lib/db rows (spec §5). Ids are uuids, timestamps are
+    # date-time. The user DTO never carries a password hash — auth data stays
+    # inside the auth boundary.
+    # ---------------------------------------------------------------------------
+    User:
+      type: object
+      description: Account for any role. Deliberately excludes the password hash.
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/UserRole"
+        displayName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - role
+        - displayName
+        - createdAt
+        - updatedAt
+    StudentRef:
+      type: object
+      description: Minimal student identity shown in parent/educator views.
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+      required:
+        - id
+        - email
+        - displayName
+    GuardianLink:
+      type: object
+      description: Parent ↔ child relationship; access requires a granted link (spec §5).
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ConsentStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - parentId
+        - studentId
+        - status
+        - createdAt
+        - updatedAt
+    GuardianLinkDetails:
+      type: object
+      description: A guardian link plus the linked student's basic identity.
+      properties:
+        id:
+          type: string
+          format: uuid
+        parentId:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ConsentStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        student:
+          $ref: "#/components/schemas/StudentRef"
+      required:
+        - id
+        - parentId
+        - studentId
+        - status
+        - createdAt
+        - updatedAt
+        - student
+    Consent:
+      type: object
+      description: >-
+        Explicit consent record behind a guardian link (spec §5) — type,
+        granted/revoked at, version of terms. Append-only: revocation stamps
+        revokedAt, it never rewrites the grant.
+      properties:
+        id:
+          type: string
+          format: uuid
+        guardianLinkId:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ConsentType"
+        grantedAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        termsVersion:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - guardianLinkId
+        - type
+        - grantedAt
+        - revokedAt
+        - termsVersion
+        - createdAt
+    LearningProfile:
+      type: object
+      description: >-
+        One per student (spec §5, §6.2). Subjects, pacing, and
+        preferredStrategy are explicit choices — preferredStrategy always wins
+        strategy selection (spec §6.4).
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        subjects:
+          type: array
+          description: Explicit subject choices; open vocabulary.
+          items:
+            type: string
+        preferredStrategy:
+          type:
+            - string
+            - "null"
+          description: >-
+            Explicit student strategy pick (e.g. "visual"); open vocabulary so
+            strategy modules can grow without a migration.
+        pacing:
+          type: string
+          description: Explicit pacing choice; open vocabulary, default "standard".
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - studentId
+        - subjects
+        - preferredStrategy
+        - pacing
+        - createdAt
+        - updatedAt
+    ProfileEntry:
+      type: object
+      description: >-
+        One row of the transparent learning record (spec §6.2). Gaps and
+        misconceptions reference assessment evidence; preferences are
+        explicit-only — no diagnosis field exists anywhere (spec §7.10).
+      properties:
+        id:
+          type: string
+          format: uuid
+        profileId:
+          type: string
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/ProfileEntryKind"
+        subject:
+          type:
+            - string
+            - "null"
+        detail:
+          type: string
+        whyChanged:
+          type:
+            - string
+            - "null"
+          description: >-
+            Human-readable transparency note for strategy changes, surfaced
+            back to the learner (spec §6.2).
+        sourceAssessmentId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        sourceTurnId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - profileId
+        - kind
+        - subject
+        - detail
+        - whyChanged
+        - sourceAssessmentId
+        - sourceTurnId
+        - createdAt
+        - updatedAt
+    StudentProfile:
+      type: object
+      description: Profile with its full entry record (spec §6.2).
+      properties:
+        profile:
+          $ref: "#/components/schemas/LearningProfile"
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileEntry"
+      required:
+        - profile
+        - entries
+    TutoringSession:
+      type: object
+      description: A persistent tutoring session (spec §5) — survives across visits.
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        title:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/SessionStatus"
+        startedAt:
+          type: string
+          format: date-time
+        lastTurnAt:
+          type:
+            - string
+            - "null"
+          description: Powers the continue-learning resume ordering.
+        endedAt:
+          type:
+            - string
+            - "null"
+      required:
+        - id
+        - studentId
+        - title
+        - status
+        - startedAt
+        - lastTurnAt
+        - endedAt
+    SessionTurn:
+      type: object
+      description: >-
+        One stored chat turn (spec §5). strategyId records which teaching
+        strategy produced a tutor turn so the no-repeat selection rule has
+        data to reason over (spec §6.4).
+      properties:
+        id:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        seq:
+          type: integer
+          description: Ordering within the session; unique per session.
+          minimum: 0
+        author:
+          $ref: "#/components/schemas/TurnAuthor"
+        content:
+          type: string
+        strategyId:
+          type:
+            - string
+            - "null"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - sessionId
+        - seq
+        - author
+        - content
+        - strategyId
+        - createdAt
+    Assessment:
+      type: object
+      description: >-
+        Mastery evidence row (spec §5, §6.3). The pairing rule — recall only
+        supports memorization/recognition; comprehension and above require
+        application, explanation, or transfer — is enforced by the DB CHECK
+        and the assessment engine at the write boundary; this DTO mirrors the
+        stored rows either way.
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        sessionId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        turnId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        subject:
+          type: string
+        skill:
+          type:
+            - string
+            - "null"
+        level:
+          $ref: "#/components/schemas/MasteryLevel"
+        evidenceKind:
+          $ref: "#/components/schemas/AssessmentEvidenceKind"
+        evidenceNote:
+          type: string
+          description: The human-readable evidence behind the classification.
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - studentId
+        - sessionId
+        - turnId
+        - subject
+        - skill
+        - level
+        - evidenceKind
+        - evidenceNote
+        - createdAt
+    ProgressEvent:
+      type: object
+      description: One append-only timeline row (spec §5) — never updated or deleted.
+      properties:
+        id:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        actorId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        sessionId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/ProgressEventKind"
+        summary:
+          type: string
+        payload:
+          type: object
+          description: Kind-specific structured detail; open content.
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - studentId
+        - actorId
+        - sessionId
+        - kind
+        - summary
+        - payload
+        - createdAt
+    AccessibilityPrefs:
+      type: object
+      description: >-
+        Per-user accessibility settings (spec §6.8) — no diagnosis gate; any
+        user sets any preference. Keyboard navigation and screen-reader labels
+        are always-on platform behavior, not preferences.
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        ttsEnabled:
+          type: boolean
+        captionsEnabled:
+          type: boolean
+        highContrast:
+          type: boolean
+        textSize:
+          $ref: "#/components/schemas/TextSize"
+        reducedMotion:
+          type: boolean
+        aacInputEnabled:
+          type: boolean
+        allowBreaks:
+          type: boolean
+        breakIntervalMinutes:
+          type: integer
+          minimum: 1
+          maximum: 240
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - ttsEnabled
+        - captionsEnabled
+        - highContrast
+        - textSize
+        - reducedMotion
+        - aacInputEnabled
+        - allowBreaks
+        - breakIntervalMinutes
+        - createdAt
+        - updatedAt
+    AuditLog:
+      type: object
+      description: >-
+        One append-only audit trail row (spec §6.11) — who, what, on which
+        resource, allowed or denied, and the authorization evidence behind the
+        decision. Shared vocabulary for the platform; exposure is
+        admin-scoped.
+      properties:
+        id:
+          type: string
+          format: uuid
+        actorId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        action:
+          type: string
+          description: Open-vocabulary action name (e.g. "view_progress").
+        resourceType:
+          type: string
+        resourceId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        decision:
+          $ref: "#/components/schemas/AuditDecision"
+        authorizationEvidence:
+          type: object
+          description: The evidence behind the allow/deny decision.
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - actorId
+        - action
+        - resourceType
+        - resourceId
+        - decision
+        - authorizationEvidence
+        - metadata
+        - createdAt
+    # ---------------------------------------------------------------------------
+    # Requests and list wrappers.
+    # ---------------------------------------------------------------------------
+    UpdateLearningProfileRequest:
+      type: object
+      description: Explicit profile choices only — never a diagnosis or disability value.
+      properties:
+        subjects:
+          type: array
+          items:
+            type: string
+        preferredStrategy:
+          type:
+            - string
+            - "null"
+        pacing:
+          type: string
+    CreateProfileEntryRequest:
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/ProfileEntryKind"
+        subject:
+          type: string
+        detail:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        whyChanged:
+          type: string
+          maxLength: 2000
+        sourceAssessmentId:
+          type: string
+          format: uuid
+        sourceTurnId:
+          type: string
+          format: uuid
+      required:
+        - kind
+        - detail
+    CreateSessionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+    PostSessionTurnRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+      required:
+        - content
+    SessionTurnExchange:
+      type: object
+      description: >-
+        The stored student turn and tutor reply, plus the adaptive metadata
+        the UI renders. proposedAction is pending until an explicit
+        confirmation — never executed from turn text alone (spec §6.11).
+      properties:
+        studentTurn:
+          $ref: "#/components/schemas/SessionTurn"
+        tutorTurn:
+          $ref: "#/components/schemas/SessionTurn"
+        spokenReply:
+          type: string
+          description: Short spoken version of the tutor reply (speech output only); not stored.
+        proposedAction:
+          $ref: "#/components/schemas/TutorProposedAction"
+          description: Action proposed but NOT executed — pending until an explicit confirm.
+        checkLine:
+          type: string
+          description: One-line check rendered verbatim before the action can happen.
+        strategyId:
+          type: string
+          description: The teaching strategy that produced the tutor turn.
+        strategyWhy:
+          type: string
+          description: Human-readable why-this-strategy note (spec §6.2 transparency).
+        recordedAssessments:
+          type: array
+          description: Mastery evidence recorded from this turn, possibly empty.
+          items:
+            $ref: "#/components/schemas/Assessment"
+      required:
+        - studentTurn
+        - tutorTurn
+        - recordedAssessments
+    CreateGuardianLinkRequest:
+      type: object
+      properties:
+        studentEmail:
+          type: string
+          format: email
+      required:
+        - studentEmail
+    RecordConsentRequest:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/ConsentType"
+        termsVersion:
+          type: string
+          minLength: 1
+      required:
+        - type
+        - termsVersion
+    UpdateAccessibilityPrefsRequest:
+      type: object
+      properties:
+        ttsEnabled:
+          type: boolean
+        captionsEnabled:
+          type: boolean
+        highContrast:
+          type: boolean
+        textSize:
+          $ref: "#/components/schemas/TextSize"
+        reducedMotion:
+          type: boolean
+        aacInputEnabled:
+          type: boolean
+        allowBreaks:
+          type: boolean
+        breakIntervalMinutes:
+          type: integer
+          minimum: 1
+          maximum: 240
+    ProfileEntryList:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileEntry"
+      required:
+        - entries
+    ProgressEventList:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProgressEvent"
+      required:
+        - events
+    SessionList:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/TutoringSession"
+      required:
+        - sessions
+    SessionTurnList:
+      type: object
+      properties:
+        turns:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionTurn"
+      required:
+        - turns
+    GuardianLinkList:
+      type: object
+      properties:
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/GuardianLinkDetails"
+      required:
+        - links
+    MasteryCounts:
+      type: object
+      description: Assessments per mastery level — evidence-backed counts for the educator rollup.
+      properties:
+        memorization:
+          type: integer
+          minimum: 0
+        recognition:
+          type: integer
+          minimum: 0
+        comprehension:
+          type: integer
+          minimum: 0
+        application:
+          type: integer
+          minimum: 0
+        mastery:
+          type: integer
+          minimum: 0
+      required:
+        - memorization
+        - recognition
+        - comprehension
+        - application
+        - mastery
+    EducatorStudentSummary:
+      type: object
+      description: Per-student rollup for the educator dashboard (spec §6.10).
+      properties:
+        studentId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        gapCount:
+          type: integer
+          description: Open gap entries in the student's learning record.
+          minimum: 0
+        masteryCounts:
+          $ref: "#/components/schemas/MasteryCounts"
+        lastActiveAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - studentId
+        - displayName
+        - gapCount
+        - masteryCounts
+        - lastActiveAt
+    EducatorClassSummary:
+      type: object
+      properties:
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/EducatorStudentSummary"
+      required:
+        - students
