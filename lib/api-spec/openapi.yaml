@@ -1658,7 +1658,9 @@ components:
             - string
             - "null"
         pendingAction:
-          $ref: "#/components/schemas/TutorProposedAction"
+          anyOf:
+            - $ref: "#/components/schemas/TutorProposedAction"
+            - type: "null"
           description: >-
             Action proposed but NOT executed, pending until an explicit
             confirm (spec §6.11). Persisted with the session so the proposal

@@ -37,8 +37,13 @@ export const tutoringSessions = pgTable(
      * proposed action parks here until POST /sessions/{id}/confirm executes
      * or clears it — the proposal survives visits and dies unexecuted unless
      * explicitly confirmed. Nullable: no pending action is the normal state.
+     *
+     * $type carries the Sentinel action enum (contract TutorProposedAction)
+     * without a pg enum migration; only setPending writes these columns.
      */
-    pendingAction: text("pending_action"),
+    pendingAction: text("pending_action").$type<
+      "advance_step" | "mark_mastered" | "assign_practice" | null
+    >(),
     pendingCheckLine: text("pending_check_line"),
   },
   (t) => [
@@ -73,7 +78,9 @@ export const sessionTurns = pgTable(
     content: text("content").notNull(),
     strategyId: text("strategy_id"),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
-    kind: text("kind"),
+    // Position-fidelity marker (teach/advance/reteach); $type without a pg enum
+    // migration — only the turn pipeline writes it, from TurnMessage values.
+    kind: text("kind").$type<"teach" | "advance" | "reteach" | null>(),
     stepId: text("step_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

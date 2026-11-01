@@ -284,7 +284,7 @@ export const CreateSessionResponse = zod.object({
   "startedAt": zod.coerce.date(),
   "lastTurnAt": zod.string().nullable().describe('Powers the continue-learning resume ordering.'),
   "endedAt": zod.string().nullable(),
-  "pendingAction": zod.enum(['advance_step', 'mark_mastered', 'assign_practice']).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
+  "pendingAction": zod.union([zod.enum(['advance_step', 'mark_mastered', 'assign_practice']),zod.null()]).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
   "pendingCheckLine": zod.string().nullable().describe('One-line check rendered verbatim next to pendingAction.')
 }).describe('A persistent tutoring session (spec §5) — survives across visits.')
 
@@ -312,7 +312,7 @@ export const ListSessionsResponse = zod.object({
   "startedAt": zod.coerce.date(),
   "lastTurnAt": zod.string().nullable().describe('Powers the continue-learning resume ordering.'),
   "endedAt": zod.string().nullable(),
-  "pendingAction": zod.enum(['advance_step', 'mark_mastered', 'assign_practice']).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
+  "pendingAction": zod.union([zod.enum(['advance_step', 'mark_mastered', 'assign_practice']),zod.null()]).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
   "pendingCheckLine": zod.string().nullable().describe('One-line check rendered verbatim next to pendingAction.')
 }).describe('A persistent tutoring session (spec §5) — survives across visits.'))
 })
@@ -334,7 +334,7 @@ export const GetSessionResponse = zod.object({
   "startedAt": zod.coerce.date(),
   "lastTurnAt": zod.string().nullable().describe('Powers the continue-learning resume ordering.'),
   "endedAt": zod.string().nullable(),
-  "pendingAction": zod.enum(['advance_step', 'mark_mastered', 'assign_practice']).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
+  "pendingAction": zod.union([zod.enum(['advance_step', 'mark_mastered', 'assign_practice']),zod.null()]).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
   "pendingCheckLine": zod.string().nullable().describe('One-line check rendered verbatim next to pendingAction.')
 }).describe('A persistent tutoring session (spec §5) — survives across visits.')
 

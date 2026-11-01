@@ -5,6 +5,7 @@ import { createAuthRoutes } from "./auth";
 import { createGuardianRoutes } from "./guardian";
 import { createProfileRoutes } from "./profiles";
 import { createAccessibilityRoutes } from "./accessibility";
+import { createSessionRoutes } from "../sessions/routes";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use("/auth", createAuthRoutes());
 router.use("/guardian", createGuardianRoutes());
 router.use("/profiles", createProfileRoutes());
 router.use("/me", createAccessibilityRoutes());
+router.use("/sessions", createSessionRoutes());
 
 export default router;

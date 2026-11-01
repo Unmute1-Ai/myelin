@@ -26,7 +26,7 @@ export interface TutoringSession {
   /** @nullable */
   endedAt: string | null;
   /** Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting. */
-  pendingAction: TutorProposedAction;
+  pendingAction: TutorProposedAction | null;
   /**
      * One-line check rendered verbatim next to pendingAction.
      * @nullable

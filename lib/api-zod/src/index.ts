@@ -21,3 +21,4 @@ export type {
 // ./generated/types). Re-export the validator under a distinct name so routes
 // can still parse path params for those operations.
 export { ListProfileEntriesParams as ListProfileEntriesParamsSchema } from "./generated/api";
+export { ListSessionTurnsParams as ListSessionTurnsParamsSchema } from "./generated/api";

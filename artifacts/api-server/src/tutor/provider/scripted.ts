@@ -12,6 +12,7 @@
 
 import type { DemoLesson, LessonStep } from "../lesson/types";
 import { answerMatches } from "../lesson/grade";
+import { asksAboutMaterials, groundedMaterialReply } from "../../sessions/materials";
 import { reteachCount } from "../session-context";
 import { MASTERED_MARKER, type SessionContext, type TurnEvent, type TutorProvider } from "../types";
 
@@ -94,6 +95,23 @@ export function createScriptedProvider(): TutorProvider {
         return;
       }
 
+      // The learner asking about their OWN uploaded materials (spec §6.7):
+      // ground the answer in the retrieved passages — quotes their notes,
+      // hint-framed, never inventing beyond them — then re-offer the check.
+      // A check attempt phrased as a question still grades (hint discipline:
+      // correct answers are never pre-empted by grounding).
+      const isCheckAttempt =
+        gradingStep !== undefined && answerMatches(input, gradingStep.check.acceptedNumbers);
+      if (!isCheckAttempt && ctx.materialContext !== undefined && asksAboutMaterials(input)) {
+        const grounded = groundedMaterialReply(ctx.materialContext);
+        yield {
+          type: "text",
+          delta: gradingStep !== undefined ? `${grounded}\n\n${gradingStep.check.question}` : grounded,
+        };
+        yield { type: "done", spoken: "I found that in your notes — take a look on screen." };
+        return;
+      }
+
       // Mid-step: grade the current check by meaning.
       if (gradingStep) {
         yield* gradeAttempt(gradingStep, input, history);
@@ -124,10 +142,15 @@ export function createScriptedProvider(): TutorProvider {
         return;
       }
 
+      // The MVP demo session is in-memory — its wrap-up must tell that truth.
+      // Persistent sessions (sessionId present) keep the learner's history, so
+      // they get the honest saved-progress copy instead.
       yield {
         type: "text",
         delta:
-          "This lesson's yours now. Nothing here is saved once the session ends — close the tab whenever, and come back anytime.",
+          ctx.sessionId === undefined
+            ? "This lesson's yours now. Nothing here is saved once the session ends — close the tab whenever, and come back anytime."
+            : "This lesson's yours now, and your progress is saved — come back to it anytime.",
       };
       yield { type: "done", spoken: "All set — nice work." };
     },
@@ -139,6 +162,7 @@ function* gradeAttempt(step: LessonStep, input: string, history: SessionContext[
   if (answerMatches(input, step.check.acceptedNumbers)) {
     yield {
       type: "text",
+      stepId: step.id,
       delta: `${step.check.onCorrect}\n\nTap Confirm to move on whenever you're ready.`,
     };
     yield { type: "proposed_action", action: "advance_step", checkLine: advanceCheckLine() };

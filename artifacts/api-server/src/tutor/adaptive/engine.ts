@@ -20,6 +20,7 @@ import { detectGaps } from "../../assessment/exercises";
 import { ensureProfile, recordStrategyChange } from "../../profiles/profile-service";
 import { logger } from "../../lib/logger";
 import { answerMatches } from "../lesson/grade";
+import { asksAboutMaterials } from "../../sessions/materials";
 import { asksForDifferentApproach } from "../provider/scripted";
 import type { SessionContext, TurnEvent, TurnMessage, TutorProvider } from "../types";
 import { STRATEGIES } from "./strategies";
@@ -132,9 +133,18 @@ export function createAdaptiveProvider(options: AdaptiveProviderOptions): TutorP
       const stuck =
         gradingStep !== undefined && !askedForDifferent && !answerMatches(ctx.input, gradingStep.check.acceptedNumbers);
 
+      // The learner asking about their OWN uploaded materials is information
+      // seeking, not being stuck (spec §6.7) — the base provider grounds the
+      // answer in ctx.materialContext. Check attempts phrased as questions
+      // still grade.
+      const materialAsk =
+        asksAboutMaterials(ctx.input) &&
+        ctx.materialContext !== undefined &&
+        !(gradingStep !== undefined && answerMatches(ctx.input, gradingStep.check.acceptedNumbers));
+
       // Only adaptive moments need the learner's context — and only when the
       // turn belongs to a session a port can resolve.
-      if ((!askedForDifferent && !stuck) || ctx.sessionId === undefined) {
+      if ((!askedForDifferent && !stuck) || materialAsk || ctx.sessionId === undefined) {
         yield* base.turn(ctx);
         return;
       }
