@@ -24,13 +24,6 @@
       "breakpoints": true
     },
     {
-      "idx": 2,
-      "version": "7",
-      "when": 1793498211647,
-      "tag": "0002_session_turn_fidelity",
-      "breakpoints": true
-    },
-    {
       "idx": 3,
       "version": "7",
       "when": 1793500268444,
