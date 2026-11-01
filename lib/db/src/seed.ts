@@ -7,11 +7,13 @@
  * (cascades clean up link/consent/profile/session/assessment/progress/prefs
  * rows); seed-tagged audit rows are cleared so the trail stays clean too.
  *
- * Password hashes are dev placeholders — real argon2 hashing arrives with the
- * auth task. Never commit real credentials; DATABASE_URL comes from the env.
+ * Passwords are hashed with Argon2id (the same path as production auth).
+ * The demo password is intentionally public and dev-only; never commit real
+ * credentials. DATABASE_URL comes from the env.
  */
 import { like, sql } from "drizzle-orm";
 import { db, pool } from "./index";
+import { hashPassword } from "./password";
 import {
   accessibilityPrefs,
   assessments,
@@ -28,8 +30,9 @@ import {
 
 const DEMO_DOMAIN = "demo.primer";
 const SEED_TAG = "primer-seed";
-// Placeholder only: not a valid argon2 hash. The auth task replaces it.
-const DEV_PASSWORD_HASH = "dev-seed-placeholder:not-a-real-password-hash";
+// Dev/demo accounts only — the documented password for every seeded
+// demo.primer user. Not a credential for any real system.
+const DEMO_PASSWORD = "primer-demo-password";
 
 async function resetDemoData() {
   await db
@@ -45,7 +48,7 @@ async function main() {
     .insert(users)
     .values({
       email: "educator@demo.primer",
-      passwordHash: DEV_PASSWORD_HASH,
+      passwordHash: await hashPassword(DEMO_PASSWORD),
       role: "educator",
       displayName: "Ms. Rivera",
     })
@@ -55,7 +58,7 @@ async function main() {
     .insert(users)
     .values({
       email: "parent@demo.primer",
-      passwordHash: DEV_PASSWORD_HASH,
+      passwordHash: await hashPassword(DEMO_PASSWORD),
       role: "parent",
       displayName: "Jordan's Parent",
     })
@@ -65,7 +68,7 @@ async function main() {
     .insert(users)
     .values({
       email: "student@demo.primer",
-      passwordHash: DEV_PASSWORD_HASH,
+      passwordHash: await hashPassword(DEMO_PASSWORD),
       role: "student",
       displayName: "Jordan",
     })
