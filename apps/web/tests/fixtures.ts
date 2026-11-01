@@ -12,6 +12,10 @@ import {
   type AccessibilityPrefs,
   type AtHomeActivity,
   type AuthUser,
+  type EducatorAssignment,
+  type EducatorLinkDetails,
+  type EducatorStudentSummary,
+  type EducatorSupports,
   type LearningProfile,
   type MasteryCounts,
   type ParentMasteryOverview,
@@ -137,6 +141,31 @@ export function makeParentStudent(
   };
 }
 
+// ── Educator dashboard fixtures (spec §6.10) ──────────────────────────────
+
+export function makeEducatorUser(overrides: Partial<AuthUser> = {}): AuthUser {
+  return makeUser({
+    id: "u-educator-1",
+    email: "ms.rivera@example.com",
+    role: "educator",
+    displayName: "Ms. Rivera",
+    ...overrides,
+  });
+}
+
+export function makeStudentSummary(
+  overrides: Partial<EducatorStudentSummary> = {},
+): EducatorStudentSummary {
+  return {
+    studentId: "u-student-1",
+    displayName: "Sam",
+    gapCount: 0,
+    masteryCounts: { memorization: 1, recognition: 0, comprehension: 0, application: 0, mastery: 0 },
+    lastActiveAt: new Date("2026-10-30T15:00:00Z"),
+    ...overrides,
+  };
+}
+
 const EMPTY_COUNTS: MasteryCounts = {
   memorization: 0,
   recognition: 0,
@@ -154,6 +183,36 @@ export function makeSubjectMastery(
     evidenceCount: 2,
     highestLevel: MasteryLevel.comprehension,
     lastEvidenceAt: new Date("2026-10-30T10:00:00Z"),
+    ...overrides,
+  };
+}
+
+export function makeEducatorLink(overrides: Partial<EducatorLinkDetails> = {}): EducatorLinkDetails {
+  return {
+    id: "el-1",
+    educatorId: "u-educator-1",
+    studentId: "u-student-1",
+    status: "granted",
+    createdAt: new Date("2026-10-15T09:00:00Z"),
+    updatedAt: new Date("2026-10-15T09:00:00Z"),
+    student: { id: "u-student-1", email: "sam@example.com", displayName: "Sam" },
+    ...overrides,
+  };
+}
+
+export function makeEducatorAssignment(
+  overrides: Partial<EducatorAssignment> = {},
+): EducatorAssignment {
+  return {
+    id: "ea-1",
+    educatorId: "u-educator-1",
+    studentId: "u-student-1",
+    title: "Counting coins to $1.00",
+    subject: "Money math",
+    detail: null,
+    status: "open",
+    createdAt: new Date("2026-10-30T10:00:00Z"),
+    updatedAt: new Date("2026-10-30T10:00:00Z"),
     ...overrides,
   };
 }
@@ -195,6 +254,17 @@ export function makeAtHomeActivity(
     subject: "Money math",
     title: "Practice together: Money math",
     reason: "Struggled to compare unlike denominators twice",
+    ...overrides,
+  };
+}
+
+export function makeEducatorSupports(overrides: Partial<EducatorSupports> = {}): EducatorSupports {
+  return {
+    studentId: "u-student-1",
+    supports: ["Prefer visual explanations"],
+    notes: null,
+    updatedBy: "u-educator-1",
+    updatedAt: new Date("2026-10-20T09:00:00Z"),
     ...overrides,
   };
 }
