@@ -8,7 +8,7 @@ import { MascotSlot } from "@/components/mascot-slot";
  */
 export default function HomePage() {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-8 px-6 py-12">
+    <main id="main" className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-8 px-6 py-12">
       <header className="flex flex-col items-center gap-3 text-center">
         <p className="text-sm font-bold uppercase tracking-widest text-primary">
           Unmute1AI presents
@@ -39,6 +39,12 @@ export default function HomePage() {
       <p className="text-center text-sm text-ink-soft">
         Student, parent, and educator dashboards arrive with the next waves.
       </p>
+
+      <div className="flex justify-center">
+        <LinkButton href="/accessibility" variant="ghost">
+          Accessibility settings
+        </LinkButton>
+      </div>
     </main>
   );
 }

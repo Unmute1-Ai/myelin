@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AccessibilityProvider } from "@/lib/accessibility/AccessibilityProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,7 +22,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-background font-sans text-ink antialiased">
-        {children}
+        <AccessibilityProvider>
+          {/*
+            Skip link: the first focusable element on every page — keyboard
+            users reach the content without tabbing through navigation (spec
+            §6.8: keyboard navigation is platform behavior, always on).
+          */}
+          <a href="#main" className="skip-link">
+            Skip to main content
+          </a>
+          {children}
+        </AccessibilityProvider>
       </body>
     </html>
   );
