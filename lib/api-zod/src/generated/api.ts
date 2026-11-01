@@ -751,6 +751,117 @@ export const ListEducatorStudentsResponse = zod.object({
 
 
 /**
+ * The parent dashboard roster (spec §6.9): every guardian link the caller owns, resolved to the student's minimal identity, with the link's current status and whether the consent trail currently grants dashboard access. A pending or revoked link is listed — honestly — but grants nothing.
+ * @summary The caller's linked students
+ */
+export const ListParentStudentsResponse = zod.object({
+  "students": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string(),
+  "linkStatus": zod.enum(['pending', 'granted', 'revoked']).describe('Current state of a guardian link; `consents` is the record trail behind it.'),
+  "accessGranted": zod.boolean().describe('Whether the consent trail currently grants dashboard access for this link — a granted link backed by an unrevoked guardian_access consent. Pending and revoked links surface with false.')
+}).describe('One roster entry for the parent dashboard (spec §6.9).'))
+})
+
+
+/**
+ * Mastery levels per subject for the parent dashboard (spec §6.9) — derived from stored, non-revoked assessments only, never invented. The consent trail is checked server-side on every call; access ends the moment consent is revoked.
+ * @summary Evidence-backed mastery overview for a linked student
+ */
+export const GetParentMasteryOverviewParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const getParentMasteryOverviewResponseSubjectsItemCountsMemorizationMin = 0;
+
+export const getParentMasteryOverviewResponseSubjectsItemCountsRecognitionMin = 0;
+
+export const getParentMasteryOverviewResponseSubjectsItemCountsComprehensionMin = 0;
+
+export const getParentMasteryOverviewResponseSubjectsItemCountsApplicationMin = 0;
+
+export const getParentMasteryOverviewResponseSubjectsItemCountsMasteryMin = 0;
+
+export const getParentMasteryOverviewResponseSubjectsItemEvidenceCountMin = 0;
+
+
+
+export const GetParentMasteryOverviewResponse = zod.object({
+  "student": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}).describe('Minimal student identity shown in parent\/educator views.'),
+  "subjects": zod.array(zod.object({
+  "subject": zod.string(),
+  "counts": zod.object({
+  "memorization": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemCountsMemorizationMin),
+  "recognition": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemCountsRecognitionMin),
+  "comprehension": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemCountsComprehensionMin),
+  "application": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemCountsApplicationMin),
+  "mastery": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemCountsMasteryMin)
+}).describe('Assessments per mastery level — evidence-backed counts for the educator rollup.'),
+  "evidenceCount": zod.number().int().min(getParentMasteryOverviewResponseSubjectsItemEvidenceCountMin).describe('Non-revoked assessment rows behind this subject\'s overview.'),
+  "highestLevel": zod.union([zod.enum(['memorization', 'recognition', 'comprehension', 'application', 'mastery']).describe('What the learner has demonstrated (spec §5, §6.3). Comprehension and above require independent application evidence.'),zod.null()]).describe('The highest rung with at least one non-revoked evidence row; null when the subject has none yet.'),
+  "lastEvidenceAt": zod.coerce.date().nullable()
+}).describe('Evidence-backed mastery for one subject (spec §6.9). Levels come from stored, non-revoked assessments only; highestLevel is the highest rung with at least one such row — never an average, never an invention.'))
+})
+
+
+/**
+ * Session metadata for the parent dashboard (spec §6.9): stamps, status, and turn counts, newest activity first. Deliberately carries no turn content — the parent dashboard renders summaries, never transcripts.
+ * @summary Session summaries for a linked student
+ */
+export const ListParentSessionSummariesParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const listParentSessionSummariesQueryLimitDefault = 20;
+export const listParentSessionSummariesQueryLimitMax = 200;
+
+
+
+export const ListParentSessionSummariesQueryParams = zod.object({
+  "limit": zod.coerce.number().int().min(1).max(listParentSessionSummariesQueryLimitMax).default(listParentSessionSummariesQueryLimitDefault)
+})
+
+export const listParentSessionSummariesResponseSessionsItemTurnCountMin = 0;
+
+
+
+export const ListParentSessionSummariesResponse = zod.object({
+  "sessions": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "title": zod.string().nullable(),
+  "status": zod.enum(['active', 'completed']),
+  "startedAt": zod.coerce.date(),
+  "lastTurnAt": zod.string().nullable(),
+  "endedAt": zod.string().nullable(),
+  "turnCount": zod.number().int().min(listParentSessionSummariesResponseSessionsItemTurnCountMin).describe('How many turns the session holds — the pulse of engagement, never its content.')
+}).describe('One session as the parent dashboard renders it (spec §6.9) — stamps, status, and turn counts only. No turn content exists on this shape by design: parents see summaries, never transcripts.'))
+})
+
+
+/**
+ * Deterministic activity suggestions derived from the student's own record (spec §6.9): practice for gap subjects, extension for evidenced mastery, and honest first steps when no evidence exists — each reason quoting the record that motivated it. Inert by design: nothing here changes the student's platform state.
+ * @summary Recommended at-home activities for a linked student
+ */
+export const ListAtHomeActivitiesParams = zod.object({
+  "studentId": zod.coerce.string().uuid()
+})
+
+export const ListAtHomeActivitiesResponse = zod.object({
+  "activities": zod.array(zod.object({
+  "id": zod.string().describe('Stable derivation id (kind + source record id), not a resource UUID.'),
+  "title": zod.string(),
+  "reason": zod.string().describe('Why the record suggests this — quoted, audit-able, never invented.'),
+  "subject": zod.string().nullable()
+}).describe('One at-home activity suggestion (spec §6.9), derived deterministically from the student\'s own evidence record; reason quotes the motivating record. Inert: nothing here mutates the student\'s platform state.'))
+})
+
+
+/**
  * The authenticated user's accessibility settings (spec §6.8), created with product defaults for the Deaf/HoH-first audience — captions on, TTS off. No diagnosis gate exists; any user sets any preference.
  * @summary Get the caller's accessibility preferences
  */

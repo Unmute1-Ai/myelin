@@ -15,6 +15,7 @@ export type {
   ListProgressEventsParams,
   ListSessionTurnsParams,
   ListSessionsParams,
+  ListParentSessionSummariesParams,
 } from "./generated/types";
 // The list operations above shadow their own runtime path-param validators
 // (same name: orval emits a zod const in ./generated/api and an interface in
@@ -23,3 +24,4 @@ export type {
 export { ListProfileEntriesParams as ListProfileEntriesParamsSchema } from "./generated/api";
 export { ListSessionTurnsParams as ListSessionTurnsParamsSchema } from "./generated/api";
 export { ListProgressEventsParams as ListProgressEventsParamsSchema } from "./generated/api";
+export { ListParentSessionSummariesParams as ListParentSessionSummariesParamsSchema } from "./generated/api";

@@ -11,7 +11,7 @@
  * The demo password is intentionally public and dev-only; never commit real
  * credentials. DATABASE_URL comes from the env.
  */
-import { like, sql } from "drizzle-orm";
+import { eq, inArray, like, sql } from "drizzle-orm";
 import { db, pool } from "./index";
 import { hashPassword } from "./password";
 import {
@@ -35,6 +35,15 @@ const SEED_TAG = "primer-seed";
 const DEMO_PASSWORD = "primer-demo-password";
 
 async function resetDemoData() {
+  // Profile entries cite assessments (deletion-protected per spec §6.0 —
+  // the schema refuses hard-deleting cited evidence), so the citing rows
+  // go first; the user cascade can then remove the assessments.
+  const demoProfiles = db
+    .select({ id: learningProfiles.id })
+    .from(learningProfiles)
+    .innerJoin(users, eq(users.id, learningProfiles.studentId))
+    .where(like(users.email, `%@${DEMO_DOMAIN}`));
+  await db.delete(profileEntries).where(inArray(profileEntries.profileId, demoProfiles));
   await db
     .delete(users)
     .where(like(users.email, `%@${DEMO_DOMAIN}`)); // cascades to owned rows
@@ -79,17 +88,24 @@ async function main() {
     .values({ parentId: parent.id, studentId: student.id, status: "granted" })
     .returning();
 
-  await db.insert(consents).values({
-    guardianLinkId: link.id,
-    type: "learning_data",
-    termsVersion: "v1.0",
-  });
+  await db.insert(consents).values([
+    {
+      guardianLinkId: link.id,
+      type: "guardian_access",
+      termsVersion: "v1.0",
+    },
+    {
+      guardianLinkId: link.id,
+      type: "learning_data",
+      termsVersion: "v1.0",
+    },
+  ]);
 
   const [profile] = await db
     .insert(learningProfiles)
     .values({
       studentId: student.id,
-      subjects: ["math.money"],
+      subjects: ["Money math"],
       preferredStrategy: "visual",
       pacing: "standard",
     })
@@ -139,7 +155,7 @@ async function main() {
         studentId: student.id,
         sessionId: session.id,
         turnId: turnRows[1].id,
-        subject: "math.money",
+        subject: "Money math",
         skill: "making_change",
         level: "memorization",
         evidenceKind: "recall",
@@ -149,7 +165,7 @@ async function main() {
         studentId: student.id,
         sessionId: session.id,
         turnId: turnRows[3].id,
-        subject: "math.money",
+        subject: "Money math",
         skill: "making_change",
         level: "comprehension",
         evidenceKind: "application",
@@ -162,14 +178,14 @@ async function main() {
     {
       profileId: profile.id,
       kind: "gap",
-      subject: "math.money",
+      subject: "Money math",
       detail: "Needed two attempts to count on from 65 cents to a dollar.",
       sourceAssessmentId: assessmentRows[0].id,
     },
     {
       profileId: profile.id,
       kind: "successful_approach",
-      subject: "math.money",
+      subject: "Money math",
       detail: "Visual coin pictures made the change problem click.",
       sourceAssessmentId: assessmentRows[1].id,
       sourceTurnId: turnRows[3].id,
@@ -182,7 +198,7 @@ async function main() {
     {
       profileId: profile.id,
       kind: "strategy_change",
-      subject: "math.money",
+      subject: "Money math",
       detail: "Switched from step_by_step to visual for making change.",
       whyChanged: "The last two step-by-step attempts stalled; pictures worked in practice.",
     },

@@ -12,7 +12,14 @@ import {
   CreateProfileEntryResponse,
   DeleteProfileEntryParams,
   GetCurrentUserResponse,
+  GetParentMasteryOverviewParams,
+  GetParentMasteryOverviewResponse,
   GetStudentProfileResponse,
+  ListAtHomeActivitiesParams,
+  ListAtHomeActivitiesResponse,
+  ListParentSessionSummariesQueryParams,
+  ListParentSessionSummariesResponse,
+  ListParentStudentsResponse,
   ListProgressEventsQueryParams,
   ListProgressEventsResponse,
   ListSessionsQueryParams,
@@ -191,4 +198,49 @@ export function listSessions(query: SessionsQueryInput = {}) {
   if (parsed.status !== undefined) search.set("status", parsed.status);
   if (parsed.limit !== undefined) search.set("limit", String(parsed.limit));
   return request("GET", "/sessions", ListSessionsResponse, { query: search });
+}
+
+// ── Parent dashboard (spec §6.9) ──────────────────────────────────────────
+// Read-only, consent-gated views of a linked learner's record. There is no
+// write call in this section by design — the parent surface offers no
+// mutations to call (the API route tests pin that boundary).
+
+export function listParentStudents() {
+  return request("GET", "/parent/students", ListParentStudentsResponse);
+}
+
+export function getParentMasteryOverview(studentId: string) {
+  GetParentMasteryOverviewParams.parse({ studentId });
+  return request(
+    "GET",
+    "/parent/students/{studentId}/mastery",
+    GetParentMasteryOverviewResponse,
+    { params: { studentId } },
+  );
+}
+
+export interface ParentSessionsQueryInput {
+  limit?: number;
+}
+
+export function listParentSessionSummaries(studentId: string, query: ParentSessionsQueryInput = {}) {
+  const parsed = ListParentSessionSummariesQueryParams.parse(query);
+  const search = new URLSearchParams();
+  if (parsed.limit !== undefined) search.set("limit", String(parsed.limit));
+  return request(
+    "GET",
+    "/parent/students/{studentId}/sessions",
+    ListParentSessionSummariesResponse,
+    { params: { studentId }, query: search },
+  );
+}
+
+export function listAtHomeActivities(studentId: string) {
+  ListAtHomeActivitiesParams.parse({ studentId });
+  return request(
+    "GET",
+    "/parent/students/{studentId}/activities",
+    ListAtHomeActivitiesResponse,
+    { params: { studentId } },
+  );
 }

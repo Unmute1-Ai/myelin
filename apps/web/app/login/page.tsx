@@ -37,8 +37,10 @@ export default function LoginPage() {
     setNotice(null);
     setSubmitting(true);
     try {
-      await login(parsed.data);
-      router.push("/dashboard");
+      const result = await login(parsed.data);
+      // Parents land on their family view; everyone else on the learner home
+      // (its role card reroutes honestly if the space isn't theirs).
+      router.push(result.user.role === "parent" ? "/parent" : "/dashboard");
       router.refresh();
     } catch (error) {
       setNotice(

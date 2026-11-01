@@ -7,6 +7,7 @@ import { createProfileRoutes } from "./profiles";
 import { createAccessibilityRoutes } from "./accessibility";
 import { createSessionRoutes } from "../sessions/routes";
 import { createProgressRoutes } from "./progress";
+import { createParentViewRoutes } from "./parent-views";
 
 const router: IRouter = Router();
 
@@ -21,5 +22,7 @@ router.use("/profiles", createProfileRoutes());
 router.use("/me", createAccessibilityRoutes());
 router.use("/progress", createProgressRoutes());
 router.use("/sessions", createSessionRoutes());
+// Parent dashboard views (spec §6.9) — read-only, consent-gated summaries.
+router.use("/parent", createParentViewRoutes());
 
 export default router;

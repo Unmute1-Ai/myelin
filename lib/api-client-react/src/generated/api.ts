@@ -21,6 +21,7 @@ import type {
 
 import type {
   AccessibilityPrefs,
+  AtHomeActivityList,
   Consent,
   CreateGuardianLinkRequest,
   CreateProfileEntryRequest,
@@ -31,11 +32,15 @@ import type {
   GuardianLinkList,
   HealthStatus,
   LearningProfile,
+  ListParentSessionSummariesParams,
   ListProfileEntriesParams,
   ListProgressEventsParams,
   ListSessionTurnsParams,
   ListSessionsParams,
   LoginRequest,
+  ParentMasteryOverview,
+  ParentSessionSummaryList,
+  ParentStudentList,
   PlatformError,
   PostSessionTurnRequest,
   ProfileEntry,
@@ -2283,6 +2288,330 @@ export function useListEducatorStudents<TData = Awaited<ReturnType<typeof listEd
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListEducatorStudentsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListParentStudentsUrl = () => {
+
+
+
+
+  return `/api/parent/students`
+}
+
+/**
+ * The parent dashboard roster (spec §6.9): every guardian link the caller owns, resolved to the student's minimal identity, with the link's current status and whether the consent trail currently grants dashboard access. A pending or revoked link is listed — honestly — but grants nothing.
+ * @summary The caller's linked students
+ */
+export const listParentStudents = async ( options?: Parameters<typeof customFetch>[1]): Promise<ParentStudentList> => {
+
+  return customFetch<ParentStudentList>(getListParentStudentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListParentStudentsQueryKey = () => {
+    return [
+    `/api/parent/students`
+    ] as const;
+    }
+
+
+export const getListParentStudentsQueryOptions = <TData = Awaited<ReturnType<typeof listParentStudents>>, TError = ErrorType<PlatformError>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listParentStudents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListParentStudentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listParentStudents>>> = ({ signal }) => listParentStudents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listParentStudents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListParentStudentsQueryResult = NonNullable<Awaited<ReturnType<typeof listParentStudents>>>
+export type ListParentStudentsQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary The caller's linked students
+ */
+
+export function useListParentStudents<TData = Awaited<ReturnType<typeof listParentStudents>>, TError = ErrorType<PlatformError>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listParentStudents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListParentStudentsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetParentMasteryOverviewUrl = (studentId: string,) => {
+
+
+
+
+  return `/api/parent/students/${studentId}/mastery`
+}
+
+/**
+ * Mastery levels per subject for the parent dashboard (spec §6.9) — derived from stored, non-revoked assessments only, never invented. The consent trail is checked server-side on every call; access ends the moment consent is revoked.
+ * @summary Evidence-backed mastery overview for a linked student
+ */
+export const getParentMasteryOverview = async (studentId: string, options?: Parameters<typeof customFetch>[1]): Promise<ParentMasteryOverview> => {
+
+  return customFetch<ParentMasteryOverview>(getGetParentMasteryOverviewUrl(studentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetParentMasteryOverviewQueryKey = (studentId: string,) => {
+    return [
+    `/api/parent/students/${studentId}/mastery`
+    ] as const;
+    }
+
+
+export const getGetParentMasteryOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getParentMasteryOverview>>, TError = ErrorType<PlatformError>>(studentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParentMasteryOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetParentMasteryOverviewQueryKey(studentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getParentMasteryOverview>>> = ({ signal }) => getParentMasteryOverview(studentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: studentId !== null && studentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getParentMasteryOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetParentMasteryOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getParentMasteryOverview>>>
+export type GetParentMasteryOverviewQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary Evidence-backed mastery overview for a linked student
+ */
+
+export function useGetParentMasteryOverview<TData = Awaited<ReturnType<typeof getParentMasteryOverview>>, TError = ErrorType<PlatformError>>(
+ studentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getParentMasteryOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetParentMasteryOverviewQueryOptions(studentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListParentSessionSummariesUrl = (studentId: string,
+    params?: ListParentSessionSummariesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/parent/students/${studentId}/sessions?${stringifiedParams}` : `/api/parent/students/${studentId}/sessions`
+}
+
+/**
+ * Session metadata for the parent dashboard (spec §6.9): stamps, status, and turn counts, newest activity first. Deliberately carries no turn content — the parent dashboard renders summaries, never transcripts.
+ * @summary Session summaries for a linked student
+ */
+export const listParentSessionSummaries = async (studentId: string,
+    params?: ListParentSessionSummariesParams, options?: Parameters<typeof customFetch>[1]): Promise<ParentSessionSummaryList> => {
+
+  return customFetch<ParentSessionSummaryList>(getListParentSessionSummariesUrl(studentId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListParentSessionSummariesQueryKey = (studentId: string,
+    params?: ListParentSessionSummariesParams,) => {
+    return [
+    `/api/parent/students/${studentId}/sessions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListParentSessionSummariesQueryOptions = <TData = Awaited<ReturnType<typeof listParentSessionSummaries>>, TError = ErrorType<PlatformError>>(studentId: string,
+    params?: ListParentSessionSummariesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listParentSessionSummaries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListParentSessionSummariesQueryKey(studentId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listParentSessionSummaries>>> = ({ signal }) => listParentSessionSummaries(studentId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: studentId !== null && studentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listParentSessionSummaries>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListParentSessionSummariesQueryResult = NonNullable<Awaited<ReturnType<typeof listParentSessionSummaries>>>
+export type ListParentSessionSummariesQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary Session summaries for a linked student
+ */
+
+export function useListParentSessionSummaries<TData = Awaited<ReturnType<typeof listParentSessionSummaries>>, TError = ErrorType<PlatformError>>(
+ studentId: string,
+    params?: ListParentSessionSummariesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listParentSessionSummaries>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListParentSessionSummariesQueryOptions(studentId,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAtHomeActivitiesUrl = (studentId: string,) => {
+
+
+
+
+  return `/api/parent/students/${studentId}/activities`
+}
+
+/**
+ * Deterministic activity suggestions derived from the student's own record (spec §6.9): practice for gap subjects, extension for evidenced mastery, and honest first steps when no evidence exists — each reason quoting the record that motivated it. Inert by design: nothing here changes the student's platform state.
+ * @summary Recommended at-home activities for a linked student
+ */
+export const listAtHomeActivities = async (studentId: string, options?: Parameters<typeof customFetch>[1]): Promise<AtHomeActivityList> => {
+
+  return customFetch<AtHomeActivityList>(getListAtHomeActivitiesUrl(studentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAtHomeActivitiesQueryKey = (studentId: string,) => {
+    return [
+    `/api/parent/students/${studentId}/activities`
+    ] as const;
+    }
+
+
+export const getListAtHomeActivitiesQueryOptions = <TData = Awaited<ReturnType<typeof listAtHomeActivities>>, TError = ErrorType<PlatformError>>(studentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAtHomeActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAtHomeActivitiesQueryKey(studentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAtHomeActivities>>> = ({ signal }) => listAtHomeActivities(studentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: studentId !== null && studentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAtHomeActivities>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAtHomeActivitiesQueryResult = NonNullable<Awaited<ReturnType<typeof listAtHomeActivities>>>
+export type ListAtHomeActivitiesQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary Recommended at-home activities for a linked student
+ */
+
+export function useListAtHomeActivities<TData = Awaited<ReturnType<typeof listAtHomeActivities>>, TError = ErrorType<PlatformError>>(
+ studentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAtHomeActivities>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAtHomeActivitiesQueryOptions(studentId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -763,6 +763,85 @@ export interface EducatorClassSummary {
   students: EducatorStudentSummary[];
 }
 
+/**
+ * One roster entry for the parent dashboard (spec §6.9).
+ */
+export interface ParentStudent {
+  id: string;
+  email: string;
+  displayName: string;
+  linkStatus: ConsentStatus;
+  /** Whether the consent trail currently grants dashboard access for this link — a granted link backed by an unrevoked guardian_access consent. Pending and revoked links surface with false. */
+  accessGranted: boolean;
+}
+
+export interface ParentStudentList {
+  students: ParentStudent[];
+}
+
+/**
+ * Evidence-backed mastery for one subject (spec §6.9). Levels come from stored, non-revoked assessments only; highestLevel is the highest rung with at least one such row — never an average, never an invention.
+ */
+export interface ParentSubjectMastery {
+  subject: string;
+  counts: MasteryCounts;
+  /**
+     * Non-revoked assessment rows behind this subject's overview.
+     * @minimum 0
+     */
+  evidenceCount: number;
+  /** The highest rung with at least one non-revoked evidence row; null when the subject has none yet. */
+  highestLevel: MasteryLevel | null;
+  /** @nullable */
+  lastEvidenceAt: string | null;
+}
+
+export interface ParentMasteryOverview {
+  student: StudentRef;
+  subjects: ParentSubjectMastery[];
+}
+
+/**
+ * One session as the parent dashboard renders it (spec §6.9) — stamps, status, and turn counts only. No turn content exists on this shape by design: parents see summaries, never transcripts.
+ */
+export interface ParentSessionSummary {
+  id: string;
+  /** @nullable */
+  title: string | null;
+  status: SessionStatus;
+  startedAt: string;
+  /** @nullable */
+  lastTurnAt: string | null;
+  /** @nullable */
+  endedAt: string | null;
+  /**
+     * How many turns the session holds — the pulse of engagement, never its content.
+     * @minimum 0
+     */
+  turnCount: number;
+}
+
+export interface ParentSessionSummaryList {
+  sessions: ParentSessionSummary[];
+}
+
+/**
+ * One at-home activity suggestion (spec §6.9), derived deterministically from the student's own evidence record; reason quotes the motivating record. Inert: nothing here mutates the student's platform state.
+ */
+export interface AtHomeActivity {
+  /** Stable derivation id (kind + source record id), not a resource UUID. */
+  id: string;
+  title: string;
+  /** Why the record suggests this — quoted, audit-able, never invented. */
+  reason: string;
+  /** @nullable */
+  subject: string | null;
+}
+
+export interface AtHomeActivityList {
+  activities: AtHomeActivity[];
+}
+
 export type ListProfileEntriesParams = {
 kind?: ProfileEntryKind;
 };
@@ -795,6 +874,14 @@ export type ListSessionTurnsParams = {
  * @minimum 0
  */
 after?: number;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};
+
+export type ListParentSessionSummariesParams = {
 /**
  * @minimum 1
  * @maximum 200
