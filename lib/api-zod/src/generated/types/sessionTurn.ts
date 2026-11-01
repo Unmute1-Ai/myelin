@@ -5,10 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.2.0
  */
+import type { SessionTurnKind } from './sessionTurnKind';
 import type { TurnAuthor } from './turnAuthor';
 
 /**
- * One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4).
+ * One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind/stepId preserve lesson position (teach/advance/reteach markers) so a restored session behaves identically to a live one.
  */
 export interface SessionTurn {
   id: string;
@@ -22,5 +23,12 @@ export interface SessionTurn {
   content: string;
   /** @nullable */
   strategyId: string | null;
+  /** What the turn did — null for student turns and plain conversation. */
+  kind: SessionTurnKind | null;
+  /**
+     * The lesson step this turn delivered or advanced past.
+     * @nullable
+     */
+  stepId: string | null;
   createdAt: Date;
 }

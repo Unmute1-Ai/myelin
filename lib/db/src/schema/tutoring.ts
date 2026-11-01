@@ -55,6 +55,11 @@ export const tutoringSessions = pgTable(
  * `revokedAt` is the turn-evidence tombstone (spec §6.0): the row keeps its
  * content for audit, but stops licensing new profile interpretations and
  * invalidates entries already citing it.
+ *
+ * `kind`/`stepId` preserve the provider's TurnMessage fidelity on restore:
+ * `derivePosition` reads them exactly as it reads in-memory history (teach/
+ * advance markers carry position; reteach counts attempts), so a session
+ * restored from rows behaves identically to one that never left memory.
  */
 export const sessionTurns = pgTable(
   "session_turns",
@@ -68,6 +73,8 @@ export const sessionTurns = pgTable(
     content: text("content").notNull(),
     strategyId: text("strategy_id"),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    kind: text("kind"),
+    stepId: text("step_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -382,8 +382,10 @@ export const ListSessionTurnsResponse = zod.object({
   "author": zod.enum(['student', 'tutor']),
   "content": zod.string(),
   "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
   "createdAt": zod.coerce.date()
-}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4).'))
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.'))
 })
 
 
@@ -417,8 +419,10 @@ export const PostSessionTurnResponse = zod.object({
   "author": zod.enum(['student', 'tutor']),
   "content": zod.string(),
   "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
   "createdAt": zod.coerce.date()
-}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4).'),
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.'),
   "tutorTurn": zod.object({
   "id": zod.string().uuid(),
   "sessionId": zod.string().uuid(),
@@ -426,8 +430,10 @@ export const PostSessionTurnResponse = zod.object({
   "author": zod.enum(['student', 'tutor']),
   "content": zod.string(),
   "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
   "createdAt": zod.coerce.date()
-}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4).'),
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.'),
   "spokenReply": zod.string().optional().describe('Short spoken version of the tutor reply (speech output only); not stored.'),
   "proposedAction": zod.enum(['advance_step', 'mark_mastered', 'assign_practice']).optional().describe('Action proposed but NOT executed — pending until an explicit confirm.'),
   "checkLine": zod.string().optional().describe('One-line check rendered verbatim before the action can happen.'),
@@ -473,8 +479,10 @@ export const ConfirmSessionActionResponse = zod.object({
   "author": zod.enum(['student', 'tutor']),
   "content": zod.string(),
   "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
   "createdAt": zod.coerce.date()
-}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4).')).describe('Stored tutor turns written by the execution (may be empty).'),
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.')).describe('Stored tutor turns written by the execution (may be empty).'),
   "reply": zod.string().describe('The tutor\'s confirmation reply (full detail, on screen).'),
   "spoken": zod.string().describe('Short spoken version of the reply (speech output only); not stored.')
 }).describe('The outcome of a confirm call. executed is true only when a pending action existed and accepted was true; tutorTurns carries the stored marker\/follow-up turns (empty on decline — a decline stores nothing).')

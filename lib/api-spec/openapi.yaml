@@ -1683,7 +1683,9 @@ components:
       description: >-
         One stored chat turn (spec §5). strategyId records which teaching
         strategy produced a tutor turn so the no-repeat selection rule has
-        data to reason over (spec §6.4).
+        data to reason over (spec §6.4). kind/stepId preserve lesson position
+        (teach/advance/reteach markers) so a restored session behaves
+        identically to a live one.
       properties:
         id:
           type: string
@@ -1703,6 +1705,16 @@ components:
           type:
             - string
             - "null"
+        kind:
+          anyOf:
+            - $ref: "#/components/schemas/SessionTurnKind"
+            - type: "null"
+          description: What the turn did — null for student turns and plain conversation.
+        stepId:
+          type:
+            - string
+            - "null"
+          description: The lesson step this turn delivered or advanced past.
         createdAt:
           type: string
           format: date-time
@@ -1713,7 +1725,16 @@ components:
         - author
         - content
         - strategyId
+        - kind
+        - stepId
         - createdAt
+    SessionTurnKind:
+      type: string
+      description: What a tutor turn did to the lesson position.
+      enum:
+        - teach
+        - advance
+        - reteach
     Assessment:
       type: object
       description: >-

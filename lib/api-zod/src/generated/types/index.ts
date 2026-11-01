@@ -53,6 +53,7 @@ export * from './sessionMaterialUpload';
 export * from './sessionStatus';
 export * from './sessionTurn';
 export * from './sessionTurnExchange';
+export * from './sessionTurnKind';
 export * from './sessionTurnList';
 export * from './studentProfile';
 export * from './studentRef';

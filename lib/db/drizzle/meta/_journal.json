@@ -22,6 +22,20 @@
       "when": 1793500223031,
       "tag": "0002_live_tutor_pending_and_materials",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793498211647,
+      "tag": "0002_session_turn_fidelity",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793500268444,
+      "tag": "0003_session_turn_fidelity",
+      "breakpoints": true
     }
   ]
 }
