@@ -16,3 +16,8 @@ export type {
   ListSessionTurnsParams,
   ListSessionsParams,
 } from "./generated/types";
+// The list operations above shadow their own runtime path-param validators
+// (same name: orval emits a zod const in ./generated/api and an interface in
+// ./generated/types). Re-export the validator under a distinct name so routes
+// can still parse path params for those operations.
+export { ListProfileEntriesParams as ListProfileEntriesParamsSchema } from "./generated/api";
