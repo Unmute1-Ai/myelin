@@ -35,6 +35,7 @@ function fakeStore() {
         sessionId: row.sessionId ?? null,
         turnId: row.turnId ?? null,
         skill: row.skill ?? null,
+        revokedAt: null,
         id: SAVED_ID,
         createdAt: new Date("2026-11-01T10:00:00.000Z"),
       };

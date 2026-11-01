@@ -32,7 +32,10 @@ const DATABASE_URL = process.env.DATABASE_URL;
  * (23514 check violation, 23505 unique violation, …) lives on `cause`.
  * Accepts both shapes so a future unwrapped version still matches.
  */
-async function expectPgCode(run: () => Promise<unknown>, code: "23514" | "23505") {
+async function expectPgCode(
+  run: () => Promise<unknown>,
+  code: "23514" | "23505" | "23001",
+) {
   try {
     await run();
   } catch (error) {
@@ -221,6 +224,71 @@ describe.skipIf(!DATABASE_URL)("db round-trip (requires DATABASE_URL)", () => {
     expect(rows[0].actorId).toBeNull();
     expect(rows[0].action).toBe("export_data");
     expect(rows[0].decision).toBe("denied");
+  });
+
+  it("keeps cited evidence undeletable and its lifecycle auditable (spec §6.0)", async () => {
+    const student = await insertUser("student@primer.test", "student");
+    const [profile] = await db!
+      .insert(learningProfiles)
+      .values({ studentId: student.id, subjects: ["math.money"] })
+      .returning();
+    const parsed = insertAssessmentSchema.parse({
+      studentId: student.id,
+      subject: "math.money",
+      level: "memorization",
+      evidenceKind: "recall",
+      evidenceNote: "Answered a practiced problem correctly from memory.",
+    });
+    const [assessment] = await db!.insert(assessments).values(parsed).returning();
+    const [entry] = await db!
+      .insert(profileEntries)
+      .values({
+        profileId: profile.id,
+        kind: "gap",
+        detail: "The skill stops at recall.",
+        sourceAssessmentId: assessment.id,
+      })
+      .returning();
+
+    // Hard delete of cited evidence is refused at the schema level — the
+    // citation can never ghost (23001 restrict_violation).
+    await expectPgCode(
+      () =>
+        db!
+          .delete(assessments)
+          .where(sql`${assessments.id} = ${assessment.id}`),
+      "23001",
+    );
+
+    // The lifecycle path instead: tombstone the evidence, invalidate the
+    // dependent entry — the citation itself survives for audit.
+    const at = new Date("2026-11-01T12:00:00.000Z");
+    await db!
+      .update(assessments)
+      .set({ revokedAt: at })
+      .where(sql`${assessments.id} = ${assessment.id}`);
+    await db!
+      .update(profileEntries)
+      .set({
+        invalidatedAt: at,
+        invalidatedReason: `evidence ${assessment.id} revoked: the recorded observation was wrong`,
+      })
+      .where(sql`${profileEntries.id} = ${entry.id}`);
+
+    const [tombstoned] = await db!
+      .select()
+      .from(assessments)
+      .where(sql`${assessments.id} = ${assessment.id}`);
+    expect(tombstoned.revokedAt).toEqual(at);
+
+    const [invalidated] = await db!
+      .select()
+      .from(profileEntries)
+      .where(sql`${profileEntries.id} = ${entry.id}`);
+    expect(invalidated.invalidatedAt).toEqual(at);
+    expect(invalidated.invalidatedReason).toContain(assessment.id);
+    // The citation is retained, marked invalid — never silently detached.
+    expect(invalidated.sourceAssessmentId).toBe(assessment.id);
   });
 
   it("cascades owned data when a student is deleted", async () => {
