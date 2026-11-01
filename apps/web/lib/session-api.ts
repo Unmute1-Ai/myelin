@@ -111,10 +111,16 @@ export async function uploadMaterial(
   sessionId: string,
   body: { filename: string; mimeType: string; content: string },
 ): Promise<SessionMaterial> {
-  return apiFetch<SessionMaterial>(`/api/sessions/${sessionId}/materials`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  // The contract wraps the stored material ({ material }) — unwrap here so
+  // callers handle one object, not the envelope.
+  const response = await apiFetch<{ material: SessionMaterial }>(
+    `/api/sessions/${sessionId}/materials`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
+  return response.material;
 }
 
 export async function listMaterials(sessionId: string): Promise<SessionMaterialList> {
