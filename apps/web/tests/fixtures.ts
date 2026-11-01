@@ -80,6 +80,8 @@ export function makeSession(overrides: Partial<TutoringSession> = {}): TutoringS
     startedAt: new Date("2026-10-03T09:00:00Z"),
     lastTurnAt: "2026-10-03T09:30:00Z",
     endedAt: null,
+    pendingAction: null,
+    pendingCheckLine: null,
     ...overrides,
   };
 }

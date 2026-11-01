@@ -29,5 +29,4 @@ export const PlatformErrorCode = {
   session_not_found: 'session_not_found',
   link_not_found: 'link_not_found',
   link_revoked: 'link_revoked',
-  no_pending_action: 'no_pending_action',
 } as const;

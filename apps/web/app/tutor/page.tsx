@@ -253,7 +253,7 @@ export default function TutorPage() {
     return (
       <CenteredShell>
         <Card className="flex flex-col items-center gap-4 text-center">
-          <MascotSlot label="PRIMER mascot — a friendly face arrives in a later wave" />
+          <MascotSlot variant="welcome" />
           <h1 className="text-2xl font-extrabold text-ink">Sign in to keep learning</h1>
           <p className="text-ink-soft">Your tutor remembers where you stopped — sign in to pick up the lesson.</p>
           <Link
@@ -338,7 +338,7 @@ export default function TutorPage() {
       >
         {messages.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-            <MascotSlot label="PRIMER mascot — a friendly face arrives in a later wave" />
+            <MascotSlot variant="sessions" />
             <p className="max-w-sm text-ink-soft">
               Hi! I&apos;m your tutor. We&apos;re working on counting coins and making change — say hello and we&apos;ll pick up
               right where you left off.

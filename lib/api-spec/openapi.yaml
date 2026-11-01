@@ -1473,7 +1473,6 @@ components:
         - session_not_found
         - link_not_found
         - link_revoked
-        - no_pending_action
     PlatformError:
       type: object
       description: Error body for every v2 error response. Never echoes payload values.
