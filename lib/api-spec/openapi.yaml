@@ -1193,6 +1193,170 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PlatformError"
+  /parent/students:
+    get:
+      operationId: listParentStudents
+      tags: [parent]
+      summary: The caller's linked students
+      description: >-
+        The parent dashboard roster (spec §6.9): every guardian link the
+        caller owns, resolved to the student's minimal identity, with the
+        link's current status and whether the consent trail currently grants
+        dashboard access. A pending or revoked link is listed — honestly —
+        but grants nothing.
+      responses:
+        "200":
+          description: Linked students, display-name order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParentStudentList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Caller is not a parent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /parent/students/{studentId}/mastery:
+    get:
+      operationId: getParentMasteryOverview
+      tags: [parent]
+      summary: Evidence-backed mastery overview for a linked student
+      description: >-
+        Mastery levels per subject for the parent dashboard (spec §6.9) —
+        derived from stored, non-revoked assessments only, never invented.
+        The consent trail is checked server-side on every call; access ends
+        the moment consent is revoked.
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Mastery overview for the linked student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParentMasteryOverview"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not a parent with granted access to this student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /parent/students/{studentId}/sessions:
+    get:
+      operationId: listParentSessionSummaries
+      tags: [parent]
+      summary: Session summaries for a linked student
+      description: >-
+        Session metadata for the parent dashboard (spec §6.9): stamps, status,
+        and turn counts, newest activity first. Deliberately carries no turn
+        content — the parent dashboard renders summaries, never transcripts.
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
+      responses:
+        "200":
+          description: Session summaries, newest activity first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParentSessionSummaryList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not a parent with granted access to this student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /parent/students/{studentId}/activities:
+    get:
+      operationId: listAtHomeActivities
+      tags: [parent]
+      summary: Recommended at-home activities for a linked student
+      description: >-
+        Deterministic activity suggestions derived from the student's own
+        record (spec §6.9): practice for gap subjects, extension for
+        evidenced mastery, and honest first steps when no evidence exists —
+        each reason quoting the record that motivated it. Inert by design:
+        nothing here changes the student's platform state.
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: At-home activity suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtHomeActivityList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not a parent with granted access to this student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Student not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
   /me/accessibility:
     get:
       operationId: getAccessibilityPrefs
@@ -2448,3 +2612,167 @@ components:
             $ref: "#/components/schemas/EducatorStudentSummary"
       required:
         - students
+    # ---------------------------------------------------------------------------
+    # Parent dashboard views (spec §6.9) — consent-gated reads over the
+    # student's record. Summary grain only: no turn content, no diagnosis
+    # vocabulary, no surveillance surface anywhere in these shapes.
+    # ---------------------------------------------------------------------------
+    ParentStudent:
+      type: object
+      description: One roster entry for the parent dashboard (spec §6.9).
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        linkStatus:
+          $ref: "#/components/schemas/ConsentStatus"
+        accessGranted:
+          type: boolean
+          description: >-
+            Whether the consent trail currently grants dashboard access for
+            this link — a granted link backed by an unrevoked guardian_access
+            consent. Pending and revoked links surface with false.
+      required:
+        - id
+        - email
+        - displayName
+        - linkStatus
+        - accessGranted
+    ParentStudentList:
+      type: object
+      properties:
+        students:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParentStudent"
+      required:
+        - students
+    ParentSubjectMastery:
+      type: object
+      description: >-
+        Evidence-backed mastery for one subject (spec §6.9). Levels come from
+        stored, non-revoked assessments only; highestLevel is the highest rung
+        with at least one such row — never an average, never an invention.
+      properties:
+        subject:
+          type: string
+        counts:
+          $ref: "#/components/schemas/MasteryCounts"
+        evidenceCount:
+          type: integer
+          minimum: 0
+          description: Non-revoked assessment rows behind this subject's overview.
+        highestLevel:
+          anyOf:
+            - $ref: "#/components/schemas/MasteryLevel"
+            - type: "null"
+          description: The highest rung with at least one non-revoked evidence row; null when the subject has none yet.
+        lastEvidenceAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - subject
+        - counts
+        - evidenceCount
+        - highestLevel
+        - lastEvidenceAt
+    ParentMasteryOverview:
+      type: object
+      properties:
+        student:
+          $ref: "#/components/schemas/StudentRef"
+        subjects:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParentSubjectMastery"
+      required:
+        - student
+        - subjects
+    ParentSessionSummary:
+      type: object
+      description: >-
+        One session as the parent dashboard renders it (spec §6.9) — stamps,
+        status, and turn counts only. No turn content exists on this shape by
+        design: parents see summaries, never transcripts.
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/SessionStatus"
+        startedAt:
+          type: string
+          format: date-time
+        lastTurnAt:
+          type:
+            - string
+            - "null"
+        endedAt:
+          type:
+            - string
+            - "null"
+        turnCount:
+          type: integer
+          minimum: 0
+          description: How many turns the session holds — the pulse of engagement, never its content.
+      required:
+        - id
+        - title
+        - status
+        - startedAt
+        - lastTurnAt
+        - endedAt
+        - turnCount
+    ParentSessionSummaryList:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ParentSessionSummary"
+      required:
+        - sessions
+    AtHomeActivity:
+      type: object
+      description: >-
+        One at-home activity suggestion (spec §6.9), derived deterministically
+        from the student's own evidence record; reason quotes the motivating
+        record. Inert: nothing here mutates the student's platform state.
+      properties:
+        id:
+          type: string
+          description: Stable derivation id (kind + source record id), not a resource UUID.
+        title:
+          type: string
+        reason:
+          type: string
+          description: Why the record suggests this — quoted, audit-able, never invented.
+        subject:
+          type:
+            - string
+            - "null"
+      required:
+        - id
+        - title
+        - reason
+        - subject
+    AtHomeActivityList:
+      type: object
+      properties:
+        activities:
+          type: array
+          items:
+            $ref: "#/components/schemas/AtHomeActivity"
+      required:
+        - activities
