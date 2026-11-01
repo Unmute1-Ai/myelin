@@ -223,6 +223,7 @@ export const PlatformErrorCode = {
   invalid_request: 'invalid_request',
   not_found: 'not_found',
   conflict: 'conflict',
+  no_pending_action: 'no_pending_action',
   consent_required: 'consent_required',
   provider_error: 'provider_error',
   rate_limited: 'rate_limited',
@@ -363,10 +364,29 @@ export interface TutoringSession {
   lastTurnAt: string | null;
   /** @nullable */
   endedAt: string | null;
+  /** Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting. */
+  pendingAction: TutorProposedAction | null;
+  /**
+     * One-line check rendered verbatim next to pendingAction.
+     * @nullable
+     */
+  pendingCheckLine: string | null;
 }
 
 /**
- * One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4).
+ * What a tutor turn did to the lesson position.
+ */
+export type SessionTurnKind = typeof SessionTurnKind[keyof typeof SessionTurnKind];
+
+
+export const SessionTurnKind = {
+  teach: 'teach',
+  advance: 'advance',
+  reteach: 'reteach',
+} as const;
+
+/**
+ * One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind/stepId preserve lesson position (teach/advance/reteach markers) so a restored session behaves identically to a live one.
  */
 export interface SessionTurn {
   id: string;
@@ -380,6 +400,13 @@ export interface SessionTurn {
   content: string;
   /** @nullable */
   strategyId: string | null;
+  /** What the turn did — null for student turns and plain conversation. */
+  kind: SessionTurnKind | null;
+  /**
+     * The lesson step this turn delivered or advanced past.
+     * @nullable
+     */
+  stepId: string | null;
   createdAt: string;
 }
 
@@ -528,6 +555,74 @@ export interface SessionTurnExchange {
   strategyWhy?: string;
   /** Mastery evidence recorded from this turn, possibly empty. */
   recordedAssessments: Assessment[];
+}
+
+/**
+ * The explicit typed confirmation (or decline) of a session's pending action.
+ */
+export interface SessionConfirmRequest {
+  accepted: boolean;
+}
+
+/**
+ * The outcome of a confirm call. executed is true only when a pending action existed and accepted was true; tutorTurns carries the stored marker/follow-up turns (empty on decline — a decline stores nothing).
+ */
+export interface SessionConfirmExchange {
+  executed: boolean;
+  /** Stored tutor turns written by the execution (may be empty). */
+  tutorTurns: SessionTurn[];
+  /** The tutor's confirmation reply (full detail, on screen). */
+  reply: string;
+  /** Short spoken version of the reply (speech output only); not stored. */
+  spoken: string;
+}
+
+/**
+ * One uploaded study material (spec §6.7). Metadata only — the extracted text lives server-side and is never echoed back over the list path.
+ */
+export interface SessionMaterial {
+  id: string;
+  sessionId: string;
+  studentId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  /** Length of the extracted text held server-side for retrieval. */
+  contentChars: number;
+  createdAt: string;
+}
+
+/**
+ * The stored material after an upload.
+ */
+export interface SessionMaterialUpload {
+  material: SessionMaterial;
+}
+
+export interface SessionMaterialList {
+  materials: SessionMaterial[];
+}
+
+/**
+ * One text-bearing file's content, read by the client and sent as JSON (v1 accepts text files only — no images, audio, or video).
+ */
+export interface CreateSessionMaterialRequest {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  filename: string;
+  /**
+     * Text-bearing types only (text/*, text/csv, application/json).
+     * @minLength 1
+     * @maxLength 100
+     */
+  mimeType: string;
+  /**
+     * @minLength 1
+     * @maxLength 100000
+     */
+  content: string;
 }
 
 export interface CreateGuardianLinkRequest {

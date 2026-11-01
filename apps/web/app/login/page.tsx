@@ -1,21 +1,24 @@
 "use client";
 
+/*
+ * Login shell wired to the real auth API (POST /api/auth/login through the
+ * same-origin proxy). Success sets the httpOnly primer_session cookie on this
+ * origin and sends the learner to the live tutor. Registration keeps its
+ * shell until the onboarding wave wires it.
+ */
+
 import Link from "next/link";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Button, Card, Field } from "@/components/ui";
 import { fieldErrors, loginSchema } from "@/lib/validation";
 
-/*
- * Login shell — client-side validation only. The auth API (registration,
- * session cookies, argon2 hashing) lands in a later wave; a valid submit
- * says so instead of pretending to sign anyone in.
- */
 export default function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const parsed = loginSchema.safeParse({
@@ -29,9 +32,28 @@ export default function LoginPage() {
     }
 
     setErrors({});
-    setNotice(
-      "Looks good — sign-in is not wired up yet. The auth API lands in a later wave.",
-    );
+    setNotice(null);
+    setBusy(true);
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(parsed.data),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { message?: string } | null;
+        setNotice(body?.message ?? "Sign-in didn't work. Try again in a moment.");
+        return;
+      }
+      // Full navigation on purpose: the login page carries no app state, and
+      // a hard handoff to /tutor re-reads the fresh session cookie cleanly.
+      window.location.assign("/tutor");
+    } catch {
+      setNotice("We couldn't reach the sign-in service. Check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -67,12 +89,14 @@ export default function LoginPage() {
             autoComplete="current-password"
             error={errors.password}
           />
-          <Button type="submit">Sign in</Button>
+          <Button type="submit" disabled={busy}>
+            {busy ? "Signing in…" : "Sign in"}
+          </Button>
         </form>
         {notice ? (
           <p
-            role="status"
-            className="mt-4 rounded-2xl bg-lavender-soft px-4 py-3 text-sm font-semibold text-primary"
+            role="alert"
+            className="mt-4 rounded-2xl bg-lavender-soft px-4 py-3 text-sm font-semibold text-danger"
           >
             {notice}
           </p>

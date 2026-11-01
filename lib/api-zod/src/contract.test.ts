@@ -62,6 +62,8 @@ const turn = (author: "student" | "tutor") => ({
   author,
   content: "Two quarters make fifty cents.",
   strategyId: null,
+  kind: null,
+  stepId: null,
   createdAt: ISO,
 });
 

@@ -24,6 +24,7 @@ import type {
   Consent,
   CreateGuardianLinkRequest,
   CreateProfileEntryRequest,
+  CreateSessionMaterialRequest,
   CreateSessionRequest,
   EducatorClassSummary,
   GuardianLinkDetails,
@@ -40,7 +41,11 @@ import type {
   ProfileEntryList,
   ProgressEventList,
   RecordConsentRequest,
+  SessionConfirmExchange,
+  SessionConfirmRequest,
   SessionList,
+  SessionMaterialList,
+  SessionMaterialUpload,
   SessionTurnExchange,
   SessionTurnList,
   StudentProfile,
@@ -1395,6 +1400,230 @@ export const usePostSessionTurn = <TError = ErrorType<PlatformError>,
       > => {
       return useMutation(getPostSessionTurnMutationOptions(options));
     }
+
+export const getConfirmSessionActionUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sessions/${sessionId}/confirm`
+}
+
+/**
+ * The Sentinel execution path for a persistent session (spec §6.11). Executes the session's pending proposed action exactly once, but only when accepted is true — a proposal never executes from turn text alone. Executed state (advance markers, next teaching) is stored with the session, so it survives visits.
+ * @summary Confirm or decline a proposed action
+ */
+export const confirmSessionAction = async (sessionId: string,
+    sessionConfirmRequest: SessionConfirmRequest, options?: Parameters<typeof customFetch>[1]): Promise<SessionConfirmExchange> => {
+
+  return customFetch<SessionConfirmExchange>(getConfirmSessionActionUrl(sessionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sessionConfirmRequest)
+  }
+);}
+
+
+
+
+
+export const getConfirmSessionActionMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmSessionAction>>, TError,{sessionId: string;data: BodyType<SessionConfirmRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmSessionAction>>, TError,{sessionId: string;data: BodyType<SessionConfirmRequest>}, TContext> => {
+
+const mutationKey = ['confirmSessionAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmSessionAction>>, {sessionId: string;data: BodyType<SessionConfirmRequest>}> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  confirmSessionAction(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmSessionActionMutationResult = NonNullable<Awaited<ReturnType<typeof confirmSessionAction>>>
+    export type ConfirmSessionActionMutationBody = BodyType<SessionConfirmRequest>
+    export type ConfirmSessionActionMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Confirm or decline a proposed action
+ */
+export const useConfirmSessionAction = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmSessionAction>>, TError,{sessionId: string;data: BodyType<SessionConfirmRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmSessionAction>>,
+        TError,
+        {sessionId: string;data: BodyType<SessionConfirmRequest>},
+        TContext
+      > => {
+      return useMutation(getConfirmSessionActionMutationOptions(options));
+    }
+
+export const getCreateSessionMaterialUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sessions/${sessionId}/materials`
+}
+
+/**
+ * Adds the student's own material to the session's knowledge base (spec §6.7): text is extracted and stored at upload time, and the tutor retrieves from it when the learner asks about their content. Text-bearing files only (txt, md, csv) — no images, audio, or video; content is capped (100,000 characters). Retrieval reads only the session student's own rows, never another student's.
+ * @summary Upload study material for this session
+ */
+export const createSessionMaterial = async (sessionId: string,
+    createSessionMaterialRequest: CreateSessionMaterialRequest, options?: Parameters<typeof customFetch>[1]): Promise<SessionMaterialUpload> => {
+
+  return customFetch<SessionMaterialUpload>(getCreateSessionMaterialUrl(sessionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createSessionMaterialRequest)
+  }
+);}
+
+
+
+
+
+export const getCreateSessionMaterialMutationOptions = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSessionMaterial>>, TError,{sessionId: string;data: BodyType<CreateSessionMaterialRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSessionMaterial>>, TError,{sessionId: string;data: BodyType<CreateSessionMaterialRequest>}, TContext> => {
+
+const mutationKey = ['createSessionMaterial'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSessionMaterial>>, {sessionId: string;data: BodyType<CreateSessionMaterialRequest>}> = (props) => {
+          const {sessionId,data} = props ?? {};
+
+          return  createSessionMaterial(sessionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSessionMaterialMutationResult = NonNullable<Awaited<ReturnType<typeof createSessionMaterial>>>
+    export type CreateSessionMaterialMutationBody = BodyType<CreateSessionMaterialRequest>
+    export type CreateSessionMaterialMutationError = ErrorType<PlatformError>
+
+    /**
+ * @summary Upload study material for this session
+ */
+export const useCreateSessionMaterial = <TError = ErrorType<PlatformError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSessionMaterial>>, TError,{sessionId: string;data: BodyType<CreateSessionMaterialRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSessionMaterial>>,
+        TError,
+        {sessionId: string;data: BodyType<CreateSessionMaterialRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateSessionMaterialMutationOptions(options));
+    }
+
+export const getListSessionMaterialsUrl = (sessionId: string,) => {
+
+
+
+
+  return `/api/sessions/${sessionId}/materials`
+}
+
+/**
+ * The session's uploaded materials, oldest first. Metadata only — full extracted text is never echoed back over the list path.
+ * @summary List the session's materials
+ */
+export const listSessionMaterials = async (sessionId: string, options?: Parameters<typeof customFetch>[1]): Promise<SessionMaterialList> => {
+
+  return customFetch<SessionMaterialList>(getListSessionMaterialsUrl(sessionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSessionMaterialsQueryKey = (sessionId: string,) => {
+    return [
+    `/api/sessions/${sessionId}/materials`
+    ] as const;
+    }
+
+
+export const getListSessionMaterialsQueryOptions = <TData = Awaited<ReturnType<typeof listSessionMaterials>>, TError = ErrorType<PlatformError>>(sessionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSessionMaterials>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSessionMaterialsQueryKey(sessionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSessionMaterials>>> = ({ signal }) => listSessionMaterials(sessionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: sessionId !== null && sessionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSessionMaterials>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSessionMaterialsQueryResult = NonNullable<Awaited<ReturnType<typeof listSessionMaterials>>>
+export type ListSessionMaterialsQueryError = ErrorType<PlatformError>
+
+
+/**
+ * @summary List the session's materials
+ */
+
+export function useListSessionMaterials<TData = Awaited<ReturnType<typeof listSessionMaterials>>, TError = ErrorType<PlatformError>>(
+ sessionId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSessionMaterials>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSessionMaterialsQueryOptions(sessionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListGuardianLinksUrl = () => {
 

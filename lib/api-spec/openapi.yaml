@@ -729,6 +729,162 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PlatformError"
+  /sessions/{sessionId}/confirm:
+    post:
+      operationId: confirmSessionAction
+      tags: [sessions]
+      summary: Confirm or decline a proposed action
+      description: >-
+        The Sentinel execution path for a persistent session (spec §6.11).
+        Executes the session's pending proposed action exactly once, but only
+        when accepted is true — a proposal never executes from turn text
+        alone. Executed state (advance markers, next teaching) is stored with
+        the session, so it survives visits.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionConfirmRequest"
+      responses:
+        "200":
+          description: Result of the confirmation (executed or declined)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionConfirmExchange"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not the session's own student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "409":
+          description: No pending action to confirm
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /sessions/{sessionId}/materials:
+    post:
+      operationId: createSessionMaterial
+      tags: [sessions]
+      summary: Upload study material for this session
+      description: >-
+        Adds the student's own material to the session's knowledge base
+        (spec §6.7): text is extracted and stored at upload time, and the
+        tutor retrieves from it when the learner asks about their content.
+        Text-bearing files only (txt, md, csv) — no images, audio, or video;
+        content is capped (100,000 characters). Retrieval reads only the
+        session student's own rows, never another student's.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionMaterialRequest"
+      responses:
+        "201":
+          description: Material stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionMaterialUpload"
+        "400":
+          description: Invalid request body (empty content, bad type, over the cap)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not the session's own student
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+    get:
+      operationId: listSessionMaterials
+      tags: [sessions]
+      summary: List the session's materials
+      description: >-
+        The session's uploaded materials, oldest first. Metadata only —
+        full extracted text is never echoed back over the list path.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Materials, oldest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionMaterialList"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "403":
+          description: Not allowed for this caller and session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "404":
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
   /parent/links:
     get:
       operationId: listGuardianLinks
@@ -1205,6 +1361,7 @@ components:
         - invalid_request
         - not_found
         - conflict
+        - no_pending_action
         - consent_required
         - provider_error
         - rate_limited
@@ -1500,6 +1657,19 @@ components:
           type:
             - string
             - "null"
+        pendingAction:
+          anyOf:
+            - $ref: "#/components/schemas/TutorProposedAction"
+            - type: "null"
+          description: >-
+            Action proposed but NOT executed, pending until an explicit
+            confirm (spec §6.11). Persisted with the session so the proposal
+            survives visits; null when nothing is waiting.
+        pendingCheckLine:
+          type:
+            - string
+            - "null"
+          description: One-line check rendered verbatim next to pendingAction.
       required:
         - id
         - studentId
@@ -1508,12 +1678,16 @@ components:
         - startedAt
         - lastTurnAt
         - endedAt
+        - pendingAction
+        - pendingCheckLine
     SessionTurn:
       type: object
       description: >-
         One stored chat turn (spec §5). strategyId records which teaching
         strategy produced a tutor turn so the no-repeat selection rule has
-        data to reason over (spec §6.4).
+        data to reason over (spec §6.4). kind/stepId preserve lesson position
+        (teach/advance/reteach markers) so a restored session behaves
+        identically to a live one.
       properties:
         id:
           type: string
@@ -1533,6 +1707,16 @@ components:
           type:
             - string
             - "null"
+        kind:
+          anyOf:
+            - $ref: "#/components/schemas/SessionTurnKind"
+            - type: "null"
+          description: What the turn did — null for student turns and plain conversation.
+        stepId:
+          type:
+            - string
+            - "null"
+          description: The lesson step this turn delivered or advanced past.
         createdAt:
           type: string
           format: date-time
@@ -1543,7 +1727,16 @@ components:
         - author
         - content
         - strategyId
+        - kind
+        - stepId
         - createdAt
+    SessionTurnKind:
+      type: string
+      description: What a tutor turn did to the lesson position.
+      enum:
+        - teach
+        - advance
+        - reteach
     Assessment:
       type: object
       description: >-
@@ -1824,6 +2017,115 @@ components:
         - studentTurn
         - tutorTurn
         - recordedAssessments
+    SessionConfirmRequest:
+      type: object
+      description: The explicit typed confirmation (or decline) of a session's pending action.
+      properties:
+        accepted:
+          type: boolean
+      required:
+        - accepted
+    SessionConfirmExchange:
+      type: object
+      description: >-
+        The outcome of a confirm call. executed is true only when a pending
+        action existed and accepted was true; tutorTurns carries the stored
+        marker/follow-up turns (empty on decline — a decline stores nothing).
+      properties:
+        executed:
+          type: boolean
+        tutorTurns:
+          type: array
+          description: Stored tutor turns written by the execution (may be empty).
+          items:
+            $ref: "#/components/schemas/SessionTurn"
+        reply:
+          type: string
+          description: The tutor's confirmation reply (full detail, on screen).
+        spoken:
+          type: string
+          description: Short spoken version of the reply (speech output only); not stored.
+      required:
+        - executed
+        - tutorTurns
+        - reply
+        - spoken
+    SessionMaterial:
+      type: object
+      description: >-
+        One uploaded study material (spec §6.7). Metadata only — the extracted
+        text lives server-side and is never echoed back over the list path.
+      properties:
+        id:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        studentId:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        mimeType:
+          type: string
+        sizeBytes:
+          type: integer
+        contentChars:
+          type: integer
+          description: Length of the extracted text held server-side for retrieval.
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - sessionId
+        - studentId
+        - filename
+        - mimeType
+        - sizeBytes
+        - contentChars
+        - createdAt
+    SessionMaterialUpload:
+      type: object
+      description: The stored material after an upload.
+      properties:
+        material:
+          $ref: "#/components/schemas/SessionMaterial"
+      required:
+        - material
+    SessionMaterialList:
+      type: object
+      properties:
+        materials:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionMaterial"
+      required:
+        - materials
+    CreateSessionMaterialRequest:
+      type: object
+      description: >-
+        One text-bearing file's content, read by the client and sent as JSON
+        (v1 accepts text files only — no images, audio, or video).
+      properties:
+        filename:
+          type: string
+          minLength: 1
+          maxLength: 255
+        mimeType:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Text-bearing types only (text/*, text/csv, application/json).
+        content:
+          type: string
+          minLength: 1
+          maxLength: 100000
+      required:
+        - filename
+        - mimeType
+        - content
     CreateGuardianLinkRequest:
       type: object
       properties:

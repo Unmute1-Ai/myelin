@@ -20,6 +20,13 @@ export interface SessionPosition {
   readonly nextTeachId: string | null;
 }
 
+/** One retrieved passage from the learner's own uploaded materials (spec §6.7). */
+export interface MaterialContext {
+  readonly materialId: string;
+  readonly filename: string;
+  readonly passage: string;
+}
+
 /** Everything a provider sees for one learner turn. */
 export interface SessionContext {
   readonly lesson: DemoLesson;
@@ -34,6 +41,12 @@ export interface SessionContext {
    * predate learner-linked sessions; those get base-provider behavior.
    */
   readonly sessionId?: string;
+  /**
+   * Passages retrieved from this session's uploaded materials for this input
+   * (spec §6.7). Empty/absent when nothing matched — providers must not
+   * pretend to know the learner's content without it.
+   */
+  readonly materialContext?: readonly MaterialContext[];
 }
 
 /** Count of re-presentations ("reteach" markers) recorded for one step. */
@@ -76,6 +89,14 @@ export function buildSessionContext(
   lesson: DemoLesson,
   input: string,
   sessionId?: string,
+  materialContext?: readonly MaterialContext[],
 ): SessionContext {
-  return { lesson, history, input, position: derivePosition(history, lesson), ...(sessionId !== undefined ? { sessionId } : {}) };
+  return {
+    lesson,
+    history,
+    input,
+    position: derivePosition(history, lesson),
+    ...(sessionId !== undefined ? { sessionId } : {}),
+    ...(materialContext !== undefined ? { materialContext } : {}),
+  };
 }

@@ -283,7 +283,9 @@ export const CreateSessionResponse = zod.object({
   "status": zod.enum(['active', 'completed']),
   "startedAt": zod.coerce.date(),
   "lastTurnAt": zod.string().nullable().describe('Powers the continue-learning resume ordering.'),
-  "endedAt": zod.string().nullable()
+  "endedAt": zod.string().nullable(),
+  "pendingAction": zod.union([zod.enum(['advance_step', 'mark_mastered', 'assign_practice']),zod.null()]).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
+  "pendingCheckLine": zod.string().nullable().describe('One-line check rendered verbatim next to pendingAction.')
 }).describe('A persistent tutoring session (spec §5) — survives across visits.')
 
 
@@ -309,7 +311,9 @@ export const ListSessionsResponse = zod.object({
   "status": zod.enum(['active', 'completed']),
   "startedAt": zod.coerce.date(),
   "lastTurnAt": zod.string().nullable().describe('Powers the continue-learning resume ordering.'),
-  "endedAt": zod.string().nullable()
+  "endedAt": zod.string().nullable(),
+  "pendingAction": zod.union([zod.enum(['advance_step', 'mark_mastered', 'assign_practice']),zod.null()]).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
+  "pendingCheckLine": zod.string().nullable().describe('One-line check rendered verbatim next to pendingAction.')
 }).describe('A persistent tutoring session (spec §5) — survives across visits.'))
 })
 
@@ -329,7 +333,9 @@ export const GetSessionResponse = zod.object({
   "status": zod.enum(['active', 'completed']),
   "startedAt": zod.coerce.date(),
   "lastTurnAt": zod.string().nullable().describe('Powers the continue-learning resume ordering.'),
-  "endedAt": zod.string().nullable()
+  "endedAt": zod.string().nullable(),
+  "pendingAction": zod.union([zod.enum(['advance_step', 'mark_mastered', 'assign_practice']),zod.null()]).describe('Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting.'),
+  "pendingCheckLine": zod.string().nullable().describe('One-line check rendered verbatim next to pendingAction.')
 }).describe('A persistent tutoring session (spec §5) — survives across visits.')
 
 
@@ -376,8 +382,10 @@ export const ListSessionTurnsResponse = zod.object({
   "author": zod.enum(['student', 'tutor']),
   "content": zod.string(),
   "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
   "createdAt": zod.coerce.date()
-}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4).'))
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.'))
 })
 
 
@@ -411,8 +419,10 @@ export const PostSessionTurnResponse = zod.object({
   "author": zod.enum(['student', 'tutor']),
   "content": zod.string(),
   "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
   "createdAt": zod.coerce.date()
-}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4).'),
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.'),
   "tutorTurn": zod.object({
   "id": zod.string().uuid(),
   "sessionId": zod.string().uuid(),
@@ -420,8 +430,10 @@ export const PostSessionTurnResponse = zod.object({
   "author": zod.enum(['student', 'tutor']),
   "content": zod.string(),
   "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
   "createdAt": zod.coerce.date()
-}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4).'),
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.'),
   "spokenReply": zod.string().optional().describe('Short spoken version of the tutor reply (speech output only); not stored.'),
   "proposedAction": zod.enum(['advance_step', 'mark_mastered', 'assign_practice']).optional().describe('Action proposed but NOT executed — pending until an explicit confirm.'),
   "checkLine": zod.string().optional().describe('One-line check rendered verbatim before the action can happen.'),
@@ -440,6 +452,98 @@ export const PostSessionTurnResponse = zod.object({
   "createdAt": zod.coerce.date()
 }).describe('Mastery evidence row (spec §5, §6.3). The pairing rule — recall only supports memorization\/recognition; comprehension and above require application, explanation, or transfer — is enforced by the DB CHECK and the assessment engine at the write boundary; this DTO mirrors the stored rows either way.')).describe('Mastery evidence recorded from this turn, possibly empty.')
 }).describe('The stored student turn and tutor reply, plus the adaptive metadata the UI renders. proposedAction is pending until an explicit confirmation — never executed from turn text alone (spec §6.11).')
+
+
+/**
+ * The Sentinel execution path for a persistent session (spec §6.11). Executes the session's pending proposed action exactly once, but only when accepted is true — a proposal never executes from turn text alone. Executed state (advance markers, next teaching) is stored with the session, so it survives visits.
+ * @summary Confirm or decline a proposed action
+ */
+export const ConfirmSessionActionParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const ConfirmSessionActionBody = zod.object({
+  "accepted": zod.boolean()
+}).describe('The explicit typed confirmation (or decline) of a session\'s pending action.')
+
+export const confirmSessionActionResponseTutorTurnsItemSeqMin = 0;
+
+
+
+export const ConfirmSessionActionResponse = zod.object({
+  "executed": zod.boolean(),
+  "tutorTurns": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sessionId": zod.string().uuid(),
+  "seq": zod.number().int().min(confirmSessionActionResponseTutorTurnsItemSeqMin).describe('Ordering within the session; unique per session.'),
+  "author": zod.enum(['student', 'tutor']),
+  "content": zod.string(),
+  "strategyId": zod.string().nullable(),
+  "kind": zod.union([zod.enum(['teach', 'advance', 'reteach']).describe('What a tutor turn did to the lesson position.'),zod.null()]).describe('What the turn did — null for student turns and plain conversation.'),
+  "stepId": zod.string().nullable().describe('The lesson step this turn delivered or advanced past.'),
+  "createdAt": zod.coerce.date()
+}).describe('One stored chat turn (spec §5). strategyId records which teaching strategy produced a tutor turn so the no-repeat selection rule has data to reason over (spec §6.4). kind\/stepId preserve lesson position (teach\/advance\/reteach markers) so a restored session behaves identically to a live one.')).describe('Stored tutor turns written by the execution (may be empty).'),
+  "reply": zod.string().describe('The tutor\'s confirmation reply (full detail, on screen).'),
+  "spoken": zod.string().describe('Short spoken version of the reply (speech output only); not stored.')
+}).describe('The outcome of a confirm call. executed is true only when a pending action existed and accepted was true; tutorTurns carries the stored marker\/follow-up turns (empty on decline — a decline stores nothing).')
+
+
+/**
+ * Adds the student's own material to the session's knowledge base (spec §6.7): text is extracted and stored at upload time, and the tutor retrieves from it when the learner asks about their content. Text-bearing files only (txt, md, csv) — no images, audio, or video; content is capped (100,000 characters). Retrieval reads only the session student's own rows, never another student's.
+ * @summary Upload study material for this session
+ */
+export const CreateSessionMaterialParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const createSessionMaterialBodyFilenameMax = 255;
+
+export const createSessionMaterialBodyMimeTypeMax = 100;
+
+export const createSessionMaterialBodyContentMax = 100000;
+
+
+
+export const CreateSessionMaterialBody = zod.object({
+  "filename": zod.string().min(1).max(createSessionMaterialBodyFilenameMax),
+  "mimeType": zod.string().min(1).max(createSessionMaterialBodyMimeTypeMax).describe('Text-bearing types only (text\/\*, text\/csv, application\/json).'),
+  "content": zod.string().min(1).max(createSessionMaterialBodyContentMax)
+}).describe('One text-bearing file\'s content, read by the client and sent as JSON (v1 accepts text files only — no images, audio, or video).')
+
+export const CreateSessionMaterialResponse = zod.object({
+  "material": zod.object({
+  "id": zod.string().uuid(),
+  "sessionId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "filename": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "contentChars": zod.number().int().describe('Length of the extracted text held server-side for retrieval.'),
+  "createdAt": zod.coerce.date()
+}).describe('One uploaded study material (spec §6.7). Metadata only — the extracted text lives server-side and is never echoed back over the list path.')
+}).describe('The stored material after an upload.')
+
+
+/**
+ * The session's uploaded materials, oldest first. Metadata only — full extracted text is never echoed back over the list path.
+ * @summary List the session's materials
+ */
+export const ListSessionMaterialsParams = zod.object({
+  "sessionId": zod.coerce.string().uuid()
+})
+
+export const ListSessionMaterialsResponse = zod.object({
+  "materials": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "sessionId": zod.string().uuid(),
+  "studentId": zod.string().uuid(),
+  "filename": zod.string(),
+  "mimeType": zod.string(),
+  "sizeBytes": zod.number().int(),
+  "contentChars": zod.number().int().describe('Length of the extracted text held server-side for retrieval.'),
+  "createdAt": zod.coerce.date()
+}).describe('One uploaded study material (spec §6.7). Metadata only — the extracted text lives server-side and is never echoed back over the list path.'))
+})
 
 
 /**

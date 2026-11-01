@@ -32,6 +32,19 @@ export const tutoringSessions = pgTable(
       .defaultNow(),
     lastTurnAt: timestamp("last_turn_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),
+    /**
+     * Sentinel pending state, persisted with the session (spec §6.11): a
+     * proposed action parks here until POST /sessions/{id}/confirm executes
+     * or clears it — the proposal survives visits and dies unexecuted unless
+     * explicitly confirmed. Nullable: no pending action is the normal state.
+     *
+     * $type carries the Sentinel action enum (contract TutorProposedAction)
+     * without a pg enum migration; only setPending writes these columns.
+     */
+    pendingAction: text("pending_action").$type<
+      "advance_step" | "mark_mastered" | "assign_practice" | null
+    >(),
+    pendingCheckLine: text("pending_check_line"),
   },
   (t) => [
     index("tutoring_sessions_student_idx").on(t.studentId),
@@ -47,6 +60,11 @@ export const tutoringSessions = pgTable(
  * `revokedAt` is the turn-evidence tombstone (spec §6.0): the row keeps its
  * content for audit, but stops licensing new profile interpretations and
  * invalidates entries already citing it.
+ *
+ * `kind`/`stepId` preserve the provider's TurnMessage fidelity on restore:
+ * `derivePosition` reads them exactly as it reads in-memory history (teach/
+ * advance markers carry position; reteach counts attempts), so a session
+ * restored from rows behaves identically to one that never left memory.
  */
 export const sessionTurns = pgTable(
   "session_turns",
@@ -60,6 +78,10 @@ export const sessionTurns = pgTable(
     content: text("content").notNull(),
     strategyId: text("strategy_id"),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    // Position-fidelity marker (teach/advance/reteach); $type without a pg enum
+    // migration — only the turn pipeline writes it, from TurnMessage values.
+    kind: text("kind").$type<"teach" | "advance" | "reteach" | null>(),
+    stepId: text("step_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -138,6 +160,36 @@ export const insertAssessmentSchema = createInsertSchema(assessments).superRefin
   },
 );
 
+/**
+ * A student's own uploaded material (spec §6.7: "RAG over the student's own
+ * content"). Text is extracted at upload time and stored — never a binary
+ * blob, never another student's row; retrieval (sessions/materials.ts) reads
+ * only rows whose studentId matches the session's student.
+ */
+export const sessionMaterials = pgTable(
+  "session_materials",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => tutoringSessions.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    contentText: text("content_text").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("session_materials_session_idx").on(t.sessionId),
+    index("session_materials_student_idx").on(t.studentId),
+  ],
+);
+
 export const tutoringSessionsRelations = relations(tutoringSessions, ({ one, many }) => ({
   student: one(users, {
     fields: [tutoringSessions.studentId],
@@ -145,6 +197,7 @@ export const tutoringSessionsRelations = relations(tutoringSessions, ({ one, man
   }),
   turns: many(sessionTurns),
   assessments: many(assessments),
+  materials: many(sessionMaterials),
 }));
 
 export const sessionTurnsRelations = relations(sessionTurns, ({ one }) => ({
@@ -169,11 +222,25 @@ export const assessmentsRelations = relations(assessments, ({ one }) => ({
   }),
 }));
 
+export const sessionMaterialsRelations = relations(sessionMaterials, ({ one }) => ({
+  session: one(tutoringSessions, {
+    fields: [sessionMaterials.sessionId],
+    references: [tutoringSessions.id],
+  }),
+  student: one(users, {
+    fields: [sessionMaterials.studentId],
+    references: [users.id],
+  }),
+}));
+
 export type TutoringSession = typeof tutoringSessions.$inferSelect;
 export type InsertTutoringSession = z.infer<typeof insertTutoringSessionSchema>;
 export type SessionTurn = typeof sessionTurns.$inferSelect;
 export type InsertSessionTurn = z.infer<typeof insertSessionTurnSchema>;
 export type Assessment = typeof assessments.$inferSelect;
 export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;
+export type SessionMaterial = typeof sessionMaterials.$inferSelect;
+export type InsertSessionMaterial = z.infer<typeof insertSessionMaterialSchema>;
 export const insertTutoringSessionSchema = createInsertSchema(tutoringSessions);
 export const insertSessionTurnSchema = createInsertSchema(sessionTurns);
+export const insertSessionMaterialSchema = createInsertSchema(sessionMaterials);

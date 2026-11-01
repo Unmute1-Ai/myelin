@@ -232,6 +232,10 @@ function seedTurn(data: MemoryData, studentId: string): SessionTurn {
     content: "I carried the wrong digit again — it keeps happening.",
     strategyId: null,
     revokedAt: null,
+    // Position-fidelity fields from the live-tutor wave; null in fixtures
+    // that model plain conversation turns.
+    kind: null,
+    stepId: null,
     createdAt: NOW,
   };
   data.turns.set(turn.id, turn);
