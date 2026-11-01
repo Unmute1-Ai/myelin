@@ -5,6 +5,9 @@
 import type { Assessment } from "@workspace/db/schema";
 import { MasteryLevel } from "@workspace/api-zod";
 
+/** The gap shapes detectGaps can produce — strategies weigh the shape, not the wording. */
+export type LearningGapKind = "recall_plateau" | "comprehension_stall" | "stale_evidence";
+
 /** One detected learning gap, with a human-readable reason for the UI. */
 export interface LearningGap {
   subject: string;
@@ -12,6 +15,8 @@ export interface LearningGap {
   reason: string;
   /** 0..1 — drives selection order when several gaps compete. */
   strength: number;
+  /** Which evidence pattern produced this gap. */
+  kind: LearningGapKind;
 }
 
 export interface DetectGapsOptions {
@@ -43,6 +48,7 @@ function gapForGroup(group: Assessment[], now: Date): LearningGap | null {
       skill,
       reason: `${recallRows.length} correct answers on practiced problems, but no independent application yet — practice a novel problem.`,
       strength: 0.8,
+      kind: "recall_plateau",
     };
   }
 
@@ -57,6 +63,7 @@ function gapForGroup(group: Assessment[], now: Date): LearningGap | null {
       skill,
       reason: `Independent application shown in ${label}, but not yet consistent — practice toward fluency.`,
       strength: 0.5,
+      kind: "comprehension_stall",
     };
   }
 
@@ -68,6 +75,7 @@ function gapForGroup(group: Assessment[], now: Date): LearningGap | null {
       skill,
       reason: `No fresh evidence in ${label} for over 30 days — refresh with a new check.`,
       strength: 0.4,
+      kind: "stale_evidence",
     };
   }
 

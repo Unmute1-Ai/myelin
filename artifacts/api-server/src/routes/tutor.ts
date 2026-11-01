@@ -88,10 +88,10 @@ export function createTutorRoutes(store: SessionStore = new SessionStore(), prov
     let pending: PendingAction | null = null;
 
     const run = async () => {
-      const ctx = buildSessionContext(session.history, lesson, body.input);
+      const ctx = buildSessionContext(session.history, lesson, body.input, session.id);
       for await (const event of provider.turn(ctx)) {
         if (event.type === "text") {
-          reply = { role: "tutor", content: event.delta, stepId: event.stepId, kind: event.kind };
+          reply = { role: "tutor", content: event.delta, stepId: event.stepId, kind: event.kind, strategyId: event.strategyId };
         } else if (event.type === "done") {
           spoken = event.spoken;
         } else {
@@ -107,7 +107,15 @@ export function createTutorRoutes(store: SessionStore = new SessionStore(), prov
           sendError(res, 502, "provider_error", "The tutor brain is unavailable right now. Try again in a moment.");
           return;
         }
-        store.pushTurn(session, body.input, executedReply);
+        // Route recording: the tutor text message carries the position markers
+        // verbatim; a proposal parks on the session — it never executes on its own.
+        store.pushTurn(session, body.input, {
+          role: "tutor",
+          content: executedReply.content,
+          stepId: executedReply.stepId,
+          kind: executedReply.kind,
+          strategyId: executedReply.strategyId,
+        });
         if (pending !== null) store.setPendingAction(session, pending);
 
         res.json(
