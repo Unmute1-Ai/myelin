@@ -50,3 +50,80 @@
   /* Rounded cards. */
   --radius-card: 1.25rem;
 }
+
+/*
+ * Accessibility preference hooks (spec §6.8). The AccessibilityProvider sets
+ * data-* attributes on <html> from the learner's stored prefs; the CSS below
+ * is the app-wide application. Nothing here is per-component — every surface
+ * inherits it by rendering inside the root layout.
+ */
+
+/* Text size: rem-based scaling, so every token-sized text follows. */
+html[data-text-size="small"] {
+  font-size: 87.5%;
+}
+html[data-text-size="medium"] {
+  font-size: 100%;
+}
+html[data-text-size="large"] {
+  font-size: 112.5%;
+}
+html[data-text-size="xlarge"] {
+  font-size: 125%;
+}
+
+/* High contrast: darker ink, firmer lines and borders, stronger ring. */
+html[data-contrast="high"] {
+  --color-ink: #161022;
+  --color-ink-soft: #454055;
+  --color-line: #8f83b8;
+  --color-ring: #4c1d95;
+}
+html[data-contrast="high"] .border,
+html[data-contrast="high"] [class*="border-line"] {
+  border-color: var(--color-line);
+}
+
+/* Reduced motion: from the learner's prefs or their OS setting — calm either
+   way, on every surface, without per-component opt-ins. */
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* AAC-friendly input: larger phrase buttons when the learner opts in. */
+html[data-aac-input="on"] .quick-response-button {
+  min-height: 3.75rem;
+  font-size: 1.125rem;
+  padding-block: 1rem;
+}
+
+/* Skip link: invisible until keyboard-focused, then unmistakable. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0 1rem 0;
+  font-weight: 700;
+}
+.skip-link:focus {
+  left: 0;
+}
