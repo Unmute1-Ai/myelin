@@ -1,22 +1,24 @@
 "use client";
 
-/*
- * Login shell wired to the real auth API (POST /api/auth/login through the
- * same-origin proxy). Success sets the httpOnly primer_session cookie on this
- * origin and sends the learner to the live tutor. Registration keeps its
- * shell until the onboarding wave wires it.
- */
-
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Button, Card, Field } from "@/components/ui";
+import { login, ApiError } from "@/lib/api-client";
 import { fieldErrors, loginSchema } from "@/lib/validation";
 
+/*
+ * Login — validates locally (the UI mirror), then calls POST /auth/login
+ * through the typed client. The API's single 401 covers both wrong-email
+ * and wrong-password — the UI mirrors that honesty and never reveals which
+ * part missed.
+ */
 export default function LoginPage() {
+  const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,26 +35,21 @@ export default function LoginPage() {
 
     setErrors({});
     setNotice(null);
-    setBusy(true);
+    setSubmitting(true);
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { message?: string } | null;
-        setNotice(body?.message ?? "Sign-in didn't work. Try again in a moment.");
-        return;
-      }
-      // Full navigation on purpose: the login page carries no app state, and
-      // a hard handoff to /tutor re-reads the fresh session cookie cleanly.
-      window.location.assign("/tutor");
-    } catch {
-      setNotice("We couldn't reach the sign-in service. Check your connection and try again.");
+      await login(parsed.data);
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error) {
+      setNotice(
+        error instanceof ApiError
+          ? error.status === 401
+            ? "That email or password doesn't match our records."
+            : error.message
+          : "Can't reach PRIMER right now. Check your connection.",
+      );
     } finally {
-      setBusy(false);
+      setSubmitting(false);
     }
   }
 
@@ -89,14 +86,14 @@ export default function LoginPage() {
             autoComplete="current-password"
             error={errors.password}
           />
-          <Button type="submit" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "Signing in…" : "Sign in"}
           </Button>
         </form>
         {notice ? (
           <p
-            role="alert"
-            className="mt-4 rounded-2xl bg-lavender-soft px-4 py-3 text-sm font-semibold text-danger"
+            role="status"
+            className="mt-4 rounded-2xl bg-lavender-soft px-4 py-3 text-sm font-semibold text-primary"
           >
             {notice}
           </p>

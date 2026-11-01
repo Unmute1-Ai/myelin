@@ -7,7 +7,7 @@
  */
 
 /**
- * Error codes for the platform (v2) surface.
+ * Error codes for the platform (v2) surface. The enumerated set is the wire truth — every code the routes can emit.
  */
 export type PlatformErrorCode = typeof PlatformErrorCode[keyof typeof PlatformErrorCode];
 
@@ -22,4 +22,11 @@ export const PlatformErrorCode = {
   consent_required: 'consent_required',
   provider_error: 'provider_error',
   rate_limited: 'rate_limited',
+  email_already_registered: 'email_already_registered',
+  invalid_credentials: 'invalid_credentials',
+  student_not_found: 'student_not_found',
+  entry_not_found: 'entry_not_found',
+  session_not_found: 'session_not_found',
+  link_not_found: 'link_not_found',
+  link_revoked: 'link_revoked',
 } as const;

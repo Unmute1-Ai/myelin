@@ -212,7 +212,7 @@ export const TextSize = {
 } as const;
 
 /**
- * Error codes for the platform (v2) surface.
+ * Error codes for the platform (v2) surface. The enumerated set is the wire truth — every code the routes can emit.
  */
 export type PlatformErrorCode = typeof PlatformErrorCode[keyof typeof PlatformErrorCode];
 
@@ -227,6 +227,13 @@ export const PlatformErrorCode = {
   consent_required: 'consent_required',
   provider_error: 'provider_error',
   rate_limited: 'rate_limited',
+  email_already_registered: 'email_already_registered',
+  invalid_credentials: 'invalid_credentials',
+  student_not_found: 'student_not_found',
+  entry_not_found: 'entry_not_found',
+  session_not_found: 'session_not_found',
+  link_not_found: 'link_not_found',
+  link_revoked: 'link_revoked',
 } as const;
 
 /**
@@ -235,6 +242,56 @@ export const PlatformErrorCode = {
 export interface PlatformError {
   code: PlatformErrorCode;
   message: string;
+}
+
+/**
+ * Account creation payload (spec §6.1).
+ */
+export interface RegisterRequest {
+  /** @maxLength 320 */
+  email: string;
+  /**
+     * @minLength 10
+     * @maxLength 200
+     */
+  password: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  displayName: string;
+  role: UserRole;
+}
+
+/**
+ * Sign-in payload (spec §6.1).
+ */
+export interface LoginRequest {
+  /** @maxLength 320 */
+  email: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  password: string;
+}
+
+/**
+ * Account for any role. Deliberately excludes the password hash and updatedAt.
+ */
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: UserRole;
+  displayName: string;
+  createdAt: string;
+}
+
+/**
+ * The authenticated caller's public user.
+ */
+export interface UserResponse {
+  user: AuthUser;
 }
 
 /**

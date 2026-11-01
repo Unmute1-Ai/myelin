@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import axe from "axe-core";
 import LandingPage from "@/app/page";
@@ -6,6 +6,18 @@ import LoginPage from "@/app/login/page";
 import RegisterPage from "@/app/register/page";
 import AccessibilityPage from "@/app/accessibility/page";
 import { AccessibilityProvider } from "@/lib/accessibility/AccessibilityProvider";
+
+// The auth pages navigate on success (router.push) — outside the Next app
+// shell the router must be stubbed for the pages to render.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    back: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+}));
 
 /*
  * axe runs over every surface built so far (spec §6.8 / DoD #9). The `region`

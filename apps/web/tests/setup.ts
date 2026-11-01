@@ -1,6 +1,14 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, vi } from "vitest";
+import { createElement } from "react";
 import { cleanup } from "@testing-library/react";
+
+// jsdom renders next/image's optimization/loading machinery poorly, and the
+// mascot <img> alt text is what several assertions check — mock to a plain img.
+vi.mock("next/image", () => ({
+  default: (props: { src: string; alt: string; className?: string }) =>
+    createElement("img", props),
+}));
 
 afterEach(() => {
   cleanup();

@@ -12,7 +12,7 @@ export const loginSchema = z.object({
     .trim()
     .toLowerCase()
     .email("Enter a valid email address."),
-  password: z.string().min(8, "Passwords are at least 8 characters."),
+  password: z.string().min(10, "Passwords are at least 10 characters."),
 });
 
 export type LoginForm = z.infer<typeof loginSchema>;
@@ -34,7 +34,7 @@ export const registerSchema = z
       .trim()
       .toLowerCase()
       .email("Enter a valid email address."),
-    password: z.string().min(8, "Passwords are at least 8 characters."),
+    password: z.string().min(10, "Passwords are at least 10 characters."),
     confirmPassword: z.string(),
     role: z.enum(registerRoles, {
       message: "Choose the role that fits you.",
