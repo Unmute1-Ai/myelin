@@ -8,14 +8,12 @@
  */
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Button, Card, Field } from "@/components/ui";
 import { fieldErrors, loginSchema } from "@/lib/validation";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -48,7 +46,9 @@ export default function LoginPage() {
         setNotice(body?.message ?? "Sign-in didn't work. Try again in a moment.");
         return;
       }
-      router.push("/tutor");
+      // Full navigation on purpose: the login page carries no app state, and
+      // a hard handoff to /tutor re-reads the fresh session cookie cleanly.
+      window.location.assign("/tutor");
     } catch {
       setNotice("We couldn't reach the sign-in service. Check your connection and try again.");
     } finally {
