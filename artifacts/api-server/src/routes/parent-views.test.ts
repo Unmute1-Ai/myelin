@@ -175,6 +175,9 @@ function fakeDeps(): FakeDeps {
     passwords: { hash: async () => "unused", verify: async () => false },
     audit,
     guardianAccess,
+    // Parent views never consult educator links — the port is part of the
+    // shared AuthDeps shape, so it rides along as an uncalled stub.
+    educatorAccess: undefined as never,
     data: parentViewData,
     authenticate,
   };
