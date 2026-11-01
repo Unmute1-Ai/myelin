@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Registration, login, logout, and the caller's identity (spec §6.1).
   - name: tutor
     description: Primer tutor session operations (MVP demo surface — in-memory sessions)
   - name: profiles
@@ -170,6 +172,104 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TutorError"
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [auth]
+      summary: Register an account
+      description: >-
+        Creates an account for any role (spec §6.1) and issues the session
+        cookie on success. Passwords are hashed with argon2 and never leave
+        the server; the response body carries the public user shape only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Account created, session issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [auth]
+      summary: Log in
+      description: >-
+        Verifies credentials and issues the session cookie (spec §6.1). One
+        response covers both wrong-email and wrong-password — the API never
+        reveals which part missed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Signed in, session issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      tags: [auth]
+      summary: Log out
+      description: Clears the session cookie.
+      responses:
+        "204":
+          description: Session cleared
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: The caller's identity
+      description: >-
+        The authenticated user's public shape (spec §6.1) — the dashboard's
+        first call, resolving whose data every other endpoint should return.
+      responses:
+        "200":
+          description: The caller's public user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformError"
   /profiles/{studentId}:
     get:
       operationId: getStudentProfile
@@ -1354,7 +1454,8 @@ components:
         - xlarge
     PlatformErrorCode:
       type: string
-      description: Error codes for the platform (v2) surface.
+      description: Error codes for the platform (v2) surface. The enumerated
+        set is the wire truth — every code the routes can emit.
       enum:
         - unauthorized
         - forbidden
@@ -1365,6 +1466,14 @@ components:
         - consent_required
         - provider_error
         - rate_limited
+        - email_already_registered
+        - invalid_credentials
+        - student_not_found
+        - entry_not_found
+        - session_not_found
+        - link_not_found
+        - link_revoked
+        - no_pending_action
     PlatformError:
       type: object
       description: Error body for every v2 error response. Never echoes payload values.
@@ -1381,6 +1490,75 @@ components:
     # date-time. The user DTO never carries a password hash — auth data stays
     # inside the auth boundary.
     # ---------------------------------------------------------------------------
+    RegisterRequest:
+      type: object
+      description: Account creation payload (spec §6.1).
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        password:
+          type: string
+          minLength: 10
+          maxLength: 200
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        role:
+          $ref: '#/components/schemas/UserRole'
+      required:
+      - email
+      - password
+      - displayName
+      - role
+    LoginRequest:
+      type: object
+      description: Sign-in payload (spec §6.1).
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        password:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required:
+      - email
+      - password
+    UserResponse:
+      type: object
+      description: The authenticated caller's public user.
+      properties:
+        user:
+          $ref: '#/components/schemas/AuthUser'
+      required:
+      - user
+    AuthUser:
+      type: object
+      description: Account for any role. Deliberately excludes the password hash and updatedAt.
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/UserRole'
+        displayName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - email
+      - role
+      - displayName
+      - createdAt
     User:
       type: object
       description: Account for any role. Deliberately excludes the password hash.

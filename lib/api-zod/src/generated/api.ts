@@ -97,6 +97,85 @@ export const DeleteTutorSessionResponse = zod.void()
 
 
 /**
+ * Creates an account for any role (spec §6.1) and issues the session cookie on success. Passwords are hashed with argon2 and never leave the server; the response body carries the public user shape only.
+ * @summary Register an account
+ */
+export const registerUserBodyEmailMax = 320;
+
+export const registerUserBodyPasswordMin = 10;
+export const registerUserBodyPasswordMax = 200;
+
+export const registerUserBodyDisplayNameMax = 120;
+
+
+
+export const RegisterUserBody = zod.object({
+  "email": zod.string().email().max(registerUserBodyEmailMax),
+  "password": zod.string().min(registerUserBodyPasswordMin).max(registerUserBodyPasswordMax),
+  "displayName": zod.string().min(1).max(registerUserBodyDisplayNameMax),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).')
+}).describe('Account creation payload (spec §6.1).')
+
+export const RegisterUserResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).'),
+  "displayName": zod.string(),
+  "createdAt": zod.coerce.date()
+}).describe('Account for any role. Deliberately excludes the password hash and updatedAt.')
+}).describe('The authenticated caller\'s public user.')
+
+
+/**
+ * Verifies credentials and issues the session cookie (spec §6.1). One response covers both wrong-email and wrong-password — the API never reveals which part missed.
+ * @summary Log in
+ */
+export const loginUserBodyEmailMax = 320;
+
+export const loginUserBodyPasswordMax = 200;
+
+
+
+export const LoginUserBody = zod.object({
+  "email": zod.string().email().max(loginUserBodyEmailMax),
+  "password": zod.string().min(1).max(loginUserBodyPasswordMax)
+}).describe('Sign-in payload (spec §6.1).')
+
+export const LoginUserResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).'),
+  "displayName": zod.string(),
+  "createdAt": zod.coerce.date()
+}).describe('Account for any role. Deliberately excludes the password hash and updatedAt.')
+}).describe('The authenticated caller\'s public user.')
+
+
+/**
+ * Clears the session cookie.
+ * @summary Log out
+ */
+export const LogoutUserResponse = zod.void()
+
+
+/**
+ * The authenticated user's public shape (spec §6.1) — the dashboard's first call, resolving whose data every other endpoint should return.
+ * @summary The caller's identity
+ */
+export const GetCurrentUserResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).'),
+  "displayName": zod.string(),
+  "createdAt": zod.coerce.date()
+}).describe('Account for any role. Deliberately excludes the password hash and updatedAt.')
+}).describe('The authenticated caller\'s public user.')
+
+
+/**
  * Returns the learning profile with its full transparent entry record (spec §6.2). Accessible by the student (self), a linked parent with granted guardian consent, and an authorized educator; every other caller is denied and audited (spec §6.1, fail-closed).
  * @summary Get a student's learning profile
  */
