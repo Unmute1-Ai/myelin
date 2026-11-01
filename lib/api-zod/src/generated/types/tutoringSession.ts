@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.2.0
  */
 import type { SessionStatus } from './sessionStatus';
+import type { TutorProposedAction } from './tutorProposedAction';
 
 /**
  * A persistent tutoring session (spec §5) — survives across visits.
@@ -24,4 +25,11 @@ export interface TutoringSession {
   lastTurnAt: string | null;
   /** @nullable */
   endedAt: string | null;
+  /** Action proposed but NOT executed, pending until an explicit confirm (spec §6.11). Persisted with the session so the proposal survives visits; null when nothing is waiting. */
+  pendingAction: TutorProposedAction;
+  /**
+     * One-line check rendered verbatim next to pendingAction.
+     * @nullable
+     */
+  pendingCheckLine: string | null;
 }

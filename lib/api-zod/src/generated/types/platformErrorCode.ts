@@ -18,6 +18,7 @@ export const PlatformErrorCode = {
   invalid_request: 'invalid_request',
   not_found: 'not_found',
   conflict: 'conflict',
+  no_pending_action: 'no_pending_action',
   consent_required: 'consent_required',
   provider_error: 'provider_error',
   rate_limited: 'rate_limited',
