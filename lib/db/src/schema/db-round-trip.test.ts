@@ -29,12 +29,14 @@ const DATABASE_URL = process.env.DATABASE_URL;
 
 /**
  * drizzle-orm wraps driver errors in DrizzleQueryError; the pg error code
- * (23514 check violation, 23505 unique violation, …) lives on `cause`.
- * Accepts both shapes so a future unwrapped version still matches.
+ * (23514 check violation, 23505 unique violation, 23503 FK violation — the
+ * code PostgreSQL actually reports for a RESTRICT deletion attempt — and
+ * 23001 where the standard code surfaces) lives on `cause`. Accepts both
+ * shapes so a future unwrapped version still matches.
  */
 async function expectPgCode(
   run: () => Promise<unknown>,
-  code: "23514" | "23505" | "23001",
+  code: "23514" | "23505" | "23503" | "23001",
 ) {
   try {
     await run();
@@ -251,13 +253,14 @@ describe.skipIf(!DATABASE_URL)("db round-trip (requires DATABASE_URL)", () => {
       .returning();
 
     // Hard delete of cited evidence is refused at the schema level — the
-    // citation can never ghost (23001 restrict_violation).
+    // citation can never ghost (PostgreSQL reports the RESTRICT violation
+    // as 23503 foreign_key_violation).
     await expectPgCode(
       () =>
         db!
           .delete(assessments)
           .where(sql`${assessments.id} = ${assessment.id}`),
-      "23001",
+      "23503",
     );
 
     // The lifecycle path instead: tombstone the evidence, invalidate the
