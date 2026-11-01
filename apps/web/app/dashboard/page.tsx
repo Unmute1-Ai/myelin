@@ -225,12 +225,19 @@ export default function DashboardPage() {
         <Card className="flex max-w-md flex-col items-center gap-4 text-center">
           <h1 className="text-2xl font-extrabold text-ink">This space is for students</h1>
           <p className="text-base text-ink-soft">
-            You are signed in as a {state.role}. Family and educator views arrive in their own
-            release waves.
+            {state.role === "parent"
+              ? "Your family dashboard lives at its own address."
+              : `You are signed in as a ${state.role}. Educator views arrive in their own release wave.`}
           </p>
-          <Button type="button" onClick={() => void handleLogout()}>
-            Sign out
-          </Button>
+          {state.role === "parent" ? (
+            <Button type="button" onClick={() => router.push("/parent")}>
+              Go to your family dashboard
+            </Button>
+          ) : (
+            <Button type="button" onClick={() => void handleLogout()}>
+              Sign out
+            </Button>
+          )}
         </Card>
       </main>
     );

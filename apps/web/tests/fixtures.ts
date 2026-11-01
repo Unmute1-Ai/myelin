@@ -10,8 +10,14 @@ import {
   SessionStatus,
   TextSize,
   type AccessibilityPrefs,
+  type AtHomeActivity,
   type AuthUser,
   type LearningProfile,
+  type MasteryCounts,
+  type ParentMasteryOverview,
+  type ParentSessionSummary,
+  type ParentStudent,
+  type ParentSubjectMastery,
   type ProfileEntry,
   type ProgressEvent,
   type TutoringSession,
@@ -100,6 +106,95 @@ export function makePrefs(overrides: Partial<AccessibilityPrefs> = {}): Accessib
     breakIntervalMinutes: 25,
     createdAt: new Date("2026-10-01T10:00:00Z"),
     updatedAt: new Date("2026-10-01T10:00:00Z"),
+    ...overrides,
+  };
+}
+
+// ── Parent-dashboard fixtures (spec §6.9) ───────────────────────────────────
+
+export function makeParentUser(overrides: Partial<AuthUser> = {}): AuthUser {
+  return makeUser(
+    {
+      id: "u-parent-1",
+      email: "parent@example.com",
+      role: "parent",
+      displayName: "Pat",
+      ...overrides,
+    },
+  );
+}
+
+export function makeParentStudent(
+  overrides: Partial<ParentStudent> = {},
+): ParentStudent {
+  return {
+    id: "u-student-1",
+    email: "sam@example.com",
+    displayName: "Sam",
+    linkStatus: "granted",
+    accessGranted: true,
+    ...overrides,
+  };
+}
+
+const EMPTY_COUNTS: MasteryCounts = {
+  memorization: 0,
+  recognition: 0,
+  comprehension: 0,
+  application: 0,
+  mastery: 0,
+};
+
+export function makeSubjectMastery(
+  overrides: Partial<ParentSubjectMastery> = {},
+): ParentSubjectMastery {
+  return {
+    subject: "Money math",
+    counts: { ...EMPTY_COUNTS, comprehension: 1, recognition: 1 },
+    evidenceCount: 2,
+    highestLevel: MasteryLevel.comprehension,
+    lastEvidenceAt: new Date("2026-10-30T10:00:00Z"),
+    ...overrides,
+  };
+}
+
+export function makeMasteryOverview(
+  overrides: Partial<ParentMasteryOverview> = {},
+): ParentMasteryOverview {
+  return {
+    student: {
+      id: "u-student-1",
+      email: "sam@example.com",
+      displayName: "Sam",
+    },
+    subjects: [makeSubjectMastery()],
+    ...overrides,
+  };
+}
+
+export function makeParentSessionSummary(
+  overrides: Partial<ParentSessionSummary> = {},
+): ParentSessionSummary {
+  return {
+    id: "s-1",
+    title: "Money math practice",
+    status: SessionStatus.active,
+    startedAt: new Date("2026-10-03T09:00:00Z"),
+    lastTurnAt: "2026-10-03T09:30:00Z",
+    endedAt: null,
+    turnCount: 7,
+    ...overrides,
+  };
+}
+
+export function makeAtHomeActivity(
+  overrides: Partial<AtHomeActivity> = {},
+): AtHomeActivity {
+  return {
+    id: "home-practice-money-math",
+    subject: "Money math",
+    title: "Practice together: Money math",
+    reason: "Struggled to compare unlike denominators twice",
     ...overrides,
   };
 }
