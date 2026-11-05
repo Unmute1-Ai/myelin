@@ -21,7 +21,12 @@ function organismBase(): URL | null {
   }
 }
 
-async function proxyJson(path: string, payload: Record<string, string>, res: Response): Promise<void> {
+async function proxyJson(
+  path: string,
+  payload: Record<string, string>,
+  res: Response,
+  requireCompanionToken = false,
+): Promise<void> {
   const base = organismBase();
   if (!base) {
     res.status(503).json({
@@ -30,10 +35,22 @@ async function proxyJson(path: string, payload: Record<string, string>, res: Res
     });
     return;
   }
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (requireCompanionToken) {
+    const token = process.env.MJ_ORGANISM_COMPANION_TOKEN;
+    if (!token) {
+      res.status(503).json({
+        code: "companion_auth_not_configured",
+        message: "The server-to-server companion credential is not configured.",
+      });
+      return;
+    }
+    headers.authorization = "Bearer " + token;
+  }
   try {
     const upstream = await fetch(new URL(path, base), {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers,
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(30_000),
     });
@@ -61,9 +78,7 @@ router.get("/status", async (_req: Request, res: Response) => {
     return;
   }
   try {
-    const upstream = await fetch(new URL("/api/organism/turn", base), {
-      signal: AbortSignal.timeout(5_000),
-    });
+    const upstream = await fetch(new URL("/api/organism/turn", base), { signal: AbortSignal.timeout(5_000) });
     const data = await upstream.json().catch(() => null);
     res.json({
       mjEndpointConfigured: true,
@@ -100,7 +115,7 @@ router.post("/synthesize", async (req: Request, res: Response) => {
     });
     return;
   }
-  await proxyJson("/api/organism/synthesize", { input, mjAssessment, jakeAssessment }, res);
+  await proxyJson("/api/organism/synthesize", { input, mjAssessment, jakeAssessment }, res, true);
 });
 
 export default router;
