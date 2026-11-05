@@ -38,6 +38,7 @@ function endpointFromEnv(): string {
 }
 
 export function createGemmaLocalProvider(): TutorProvider {
+  const endpoint = endpointFromEnv();
   return {
     name: "gemma-local",
     async *turn(ctx: SessionContext): AsyncIterable<TurnEvent> {
@@ -60,7 +61,7 @@ export function createGemmaLocalProvider(): TutorProvider {
           },
         }],
       };
-      const raw = await postJson(endpointFromEnv(), headers, body);
+      const raw = await postJson(endpoint, headers, body);
       const parsed = parseJsonResponse(raw) as Parameters<typeof openAIToolCall>[0];
       const text = parsed.choices?.[0]?.message?.content ?? "";
       const toolReply = toolCallToReply(openAIToolCall(parsed), text);
