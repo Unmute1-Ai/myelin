@@ -94,6 +94,10 @@ router.get("/status", async (_req: Request, res: Response) => {
 
 router.post("/mj", async (req: Request, res: Response) => {
   const input = typeof req.body?.input === "string" ? req.body.input.trim() : "";
+  if (req.body?.consent !== true) {
+    res.status(403).json({ code: "consent_required", message: "Explicit one-turn consent is required before MJ receives this prompt." });
+    return;
+  }
   if (!input || input.length > MAX_INPUT) {
     res.status(400).json({ code: "invalid_request", message: "Input must contain 1–6000 characters." });
     return;
@@ -105,6 +109,10 @@ router.post("/synthesize", async (req: Request, res: Response) => {
   const input = typeof req.body?.input === "string" ? req.body.input.trim() : "";
   const mjAssessment = typeof req.body?.mjAssessment === "string" ? req.body.mjAssessment.trim() : "";
   const jakeAssessment = typeof req.body?.jakeAssessment === "string" ? req.body.jakeAssessment.trim() : "";
+  if (req.body?.consent !== true) {
+    res.status(403).json({ code: "consent_required", message: "Explicit one-turn consent is required before joint synthesis receives both specialist outputs." });
+    return;
+  }
   if (
     !input || input.length > MAX_INPUT ||
     !mjAssessment || mjAssessment.length > MAX_ASSESSMENT ||
