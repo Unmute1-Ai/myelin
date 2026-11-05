@@ -21,11 +21,7 @@ function organismBase(): URL | null {
   }
 }
 
-async function proxyJson(
-  path: string,
-  payload: Record<string, string>,
-  res: Response,
-): Promise<void> {
+async function proxyJson(path: string, payload: Record<string, string>, res: Response): Promise<void> {
   const base = organismBase();
   if (!base) {
     res.status(503).json({
@@ -34,10 +30,8 @@ async function proxyJson(
     });
     return;
   }
-
   try {
-    const target = new URL(path, base);
-    const upstream = await fetch(target, {
+    const upstream = await fetch(new URL(path, base), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
@@ -60,21 +54,32 @@ async function proxyJson(
   }
 }
 
-router.get("/status", (_req: Request, res: Response) => {
-  res.json({
-    mjConfigured: organismBase() !== null,
-    jakeAvailable: true,
-    authority: "advisory_only",
-  });
+router.get("/status", async (_req: Request, res: Response) => {
+  const base = organismBase();
+  if (!base) {
+    res.json({ mjEndpointConfigured: false, mjProviderReady: false, jakeAvailable: true, authority: "advisory_only" });
+    return;
+  }
+  try {
+    const upstream = await fetch(new URL("/api/organism/turn", base), {
+      signal: AbortSignal.timeout(5_000),
+    });
+    const data = await upstream.json().catch(() => null);
+    res.json({
+      mjEndpointConfigured: true,
+      mjProviderReady: upstream.ok && data?.providerConfigured === true,
+      jakeAvailable: true,
+      authority: "advisory_only",
+    });
+  } catch {
+    res.json({ mjEndpointConfigured: true, mjProviderReady: false, jakeAvailable: true, authority: "advisory_only" });
+  }
 });
 
 router.post("/mj", async (req: Request, res: Response) => {
   const input = typeof req.body?.input === "string" ? req.body.input.trim() : "";
   if (!input || input.length > MAX_INPUT) {
-    res.status(400).json({
-      code: "invalid_request",
-      message: "Input must contain 1–6000 characters.",
-    });
+    res.status(400).json({ code: "invalid_request", message: "Input must contain 1–6000 characters." });
     return;
   }
   await proxyJson("/api/organism/turn", { input }, res);
