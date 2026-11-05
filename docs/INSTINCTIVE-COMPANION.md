@@ -42,7 +42,7 @@ The companion's status endpoint checks the MJ application and its provider readi
 
 ## Current runtime behavior
 
-- Jake turns use the existing authenticated Myelin session endpoint and its configured Primer provider. The default remains the deterministic scripted provider; cloud providers are development-only, and the Gemma-local launch tier is not yet wired. The current provider mode is disclosed by the companion status endpoint. Jake turns remain stored as Myelin learner-session turns.
+- Jake turns use the existing authenticated Myelin session endpoint and its configured Primer provider. The default remains the deterministic scripted provider. This branch adds a Gemma-local provider adapter for an OpenAI-compatible local inference endpoint (Ollama-compatible default); set TUTOR_PROVIDER=gemma-local and GEMMA_LOCAL_BASE_URL/GEMMA_LOCAL_MODEL to activate it. Cloud providers remain development-only. The current provider mode is disclosed by the companion status endpoint. Jake turns remain stored as Myelin learner-session turns.
 - MJ turns call the existing MJ Organism specialist route.
 - Together mode runs MJ and Jake independently, then sends the two returned assessments to the separate MJ synthesis route.
 - If one specialist fails, the UI preserves the successful specialist's response and does not invent a joint conclusion.
@@ -53,7 +53,7 @@ The companion's status endpoint checks the MJ application and its provider readi
 
 - This branch has not been installed, typechecked, built, or exercised against live Myelin and MJ deployments in this session.
 - `MJ_ORGANISM_BASE_URL` has not been configured or verified against a deployed MJ host.
-- Existing Myelin authentication, session creation, and Jake provider behavior need real integration verification. A default scripted provider is not equivalent to a live generative model.
+- Existing Myelin authentication, session creation, and Jake provider behavior need real integration verification. The Gemma-local adapter has not been exercised against a real local inference server; a default scripted provider is not equivalent to a live generative model.
 - The MJ provider may be remote depending on deployment configuration; the consent disclosure is therefore explicit.
 - U1Si-Q is represented as an authority boundary in the UI and documentation, but a production service integration is not part of this change.
 - No Deaf-led review approval has been obtained for release. This work must not be released as a product for Deaf, hard-of-hearing, or neurodivergent users before the charter's independent review gate is implemented and satisfied.
