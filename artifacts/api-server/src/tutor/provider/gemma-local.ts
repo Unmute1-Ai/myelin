@@ -30,8 +30,10 @@ function endpointFromEnv(): string {
   } catch {
     throw new Error("GEMMA_LOCAL_BASE_URL must be a valid URL");
   }
-  const loopback = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(url.hostname);
-  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
+  const loopback = ["localhost", "127.0.0.1", "::1", "[::1]", "host.docker.internal"].includes(url.hostname);
+  const privateIpv4 = /^10\\./.test(url.hostname) || /^192\\.168\\./.test(url.hostname) || /^172\\.(1[6-9]|2[0-9]|3[01])\\./.test(url.hostname);
+  const localDomain = url.hostname.endsWith(".local");
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && (loopback || privateIpv4 || localDomain))) {
     throw new Error("Gemma-local must use HTTPS or a loopback HTTP endpoint");
   }
   return url.toString();
