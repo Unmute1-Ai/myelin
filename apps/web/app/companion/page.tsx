@@ -49,6 +49,7 @@ export default function CompanionPage() {
   const [busy, setBusy] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [mjConfigured, setMjConfigured] = useState(false);
+  const [jakeProvider, setJakeProvider] = useState("scripted");
   const [statusReady, setStatusReady] = useState(false);
   const [error, setError] = useState("");
   const [turns, setTurns] = useState<TurnView[]>([]);
@@ -56,7 +57,7 @@ export default function CompanionPage() {
   useEffect(() => {
     let active = true;
     fetch("/api/companion/status", { credentials: "same-origin" })
-      .then(body).then((data) => { if (active) { setMjConfigured(Boolean(data.mjProviderReady)); setStatusReady(true); } })
+      .then(body).then((data) => { if (active) { setMjConfigured(Boolean(data.mjProviderReady)); setJakeProvider(typeof data.jakeProvider === "string" ? data.jakeProvider : "scripted"); setStatusReady(true); } })
       .catch(() => { if (active) setStatusReady(true); });
     return () => { active = false; };
   }, []);
