@@ -30,7 +30,7 @@ function endpointFromEnv(): string {
   } catch {
     throw new Error("GEMMA_LOCAL_BASE_URL must be a valid URL");
   }
-  const loopback = ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+  const loopback = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
     throw new Error("Gemma-local must use HTTPS or a loopback HTTP endpoint");
   }
