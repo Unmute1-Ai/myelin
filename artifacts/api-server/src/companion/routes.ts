@@ -74,7 +74,7 @@ async function proxyJson(
 router.get("/status", async (_req: Request, res: Response) => {
   const base = organismBase();
   if (!base) {
-    res.json({ mjEndpointConfigured: false, mjProviderReady: false, jakeAvailable: true, authority: "advisory_only" });
+    res.json({ mjEndpointConfigured: false, mjProviderReady: false, jakeAvailable: true, jakeProvider: process.env.TUTOR_PROVIDER ?? "scripted", authority: "advisory_only" });
     return;
   }
   try {
@@ -84,10 +84,11 @@ router.get("/status", async (_req: Request, res: Response) => {
       mjEndpointConfigured: true,
       mjProviderReady: upstream.ok && data?.providerConfigured === true,
       jakeAvailable: true,
+      jakeProvider: process.env.TUTOR_PROVIDER ?? "scripted",
       authority: "advisory_only",
     });
   } catch {
-    res.json({ mjEndpointConfigured: true, mjProviderReady: false, jakeAvailable: true, authority: "advisory_only" });
+    res.json({ mjEndpointConfigured: true, mjProviderReady: false, jakeAvailable: true, jakeProvider: process.env.TUTOR_PROVIDER ?? "scripted", authority: "advisory_only" });
   }
 });
 
