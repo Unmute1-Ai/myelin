@@ -16,7 +16,7 @@ One companion surface coordinates two specialist systems:
 1. A user turn may be routed to MJ, Jake, or both.
 2. Joint mode shares the current user-provided turn and the two explicit specialist outputs with the synthesis step. It does not merge stored memories.
 3. MJ and Jake do not receive each other's stored memory. Jake uses Myelin's authenticated session; MJ receives only the current turn.
-4. MJ routing requires a per-turn consent checkbox in the companion UI. The permission is not stored as a standing grant.
+4. MJ routing requires a per-turn consent checkbox in the companion UI and a server-validated consent flag on both proxy routes. In Together mode, the disclosure explicitly covers sending both current-turn specialist outputs to MJ for synthesis. The permission is not stored as a standing grant.
 5. The companion runtime has no tool-execution, settings-change, or data-sharing authority.
 6. Any consequential action must be authorized by the independent U1Si-Q integration. A model response is never an authorization token.
 7. Learner communication must not be forced into a single modality. The current UI supports keyboard-accessible text; sign, speech, and AAC adapters are not yet integrated.
