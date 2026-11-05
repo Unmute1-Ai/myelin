@@ -36,7 +36,7 @@ One companion surface coordinates two specialist systems:
 
 On the Myelin API server, set `MJ_ORGANISM_BASE_URL` to the origin of the deployed MJ Organism application, for example `https://your-mj-host.example`. The value must be HTTPS in remote deployments; localhost HTTP is allowed for local development.
 
-The MJ Organism deployment must have its model provider configured using its existing server-side `MODEL_API_KEY`, with optional `MODEL_BASE_URL` and `MODEL_NAME`. Do not expose these values through `NEXT_PUBLIC_*`.
+The MJ Organism deployment must have its model provider configured using its existing server-side `MODEL_API_KEY`, with optional `MODEL_BASE_URL` and `MODEL_NAME`. For joint synthesis, set `COMPANION_SHARED_SECRET` on MJ and the identical value as `MJ_ORGANISM_COMPANION_TOKEN` on the Myelin API server. Use a high-entropy random secret and never expose it through `NEXT_PUBLIC_*`.
 
 The companion's status endpoint checks the MJ application and its provider readiness. A configured URL alone is not reported as a ready model.
 
