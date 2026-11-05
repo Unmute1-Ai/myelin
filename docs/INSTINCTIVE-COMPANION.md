@@ -1,6 +1,6 @@
 # U1 Instinctive Companion
 
-**Status:** integration foundation committed on a feature branch. Not a production release.
+**Status:** implementation in progress on a feature branch. Not a production release.
 
 ## Product shape
 
@@ -8,50 +8,63 @@ One companion surface coordinates two specialist systems:
 
 - **MJ / Instinctive Intelligence:** reasoning, pattern analysis, investigation and planning.
 - **Jake / Primer on Myelin:** adaptive tutoring and learner-centered communication.
-- **Myelin:** application shell, learner profiles and session infrastructure.
+- **Myelin:** authenticated application shell, learner sessions and persistence.
 - **U1Si-Q:** independent authorization and enforcement boundary. It is not replaced by the companion orchestrator.
 
 ## Non-negotiable boundaries
 
-1. A single user turn may be routed to MJ, Jake, or both.
-2. Joint mode shares only the current user-provided turn. MJ and Jake receive separate memory namespaces.
-3. Memory is not read unless the caller supplies explicit consent.
-4. Memory writes are a separate explicit operation. Conversation turns never write memory automatically.
+1. A user turn may be routed to MJ, Jake, or both.
+2. Joint mode shares the current user-provided turn and the two explicit specialist outputs with the synthesis step. It does not merge stored memories.
+3. MJ and Jake do not receive each other's stored memory. Jake uses Myelin's authenticated session; MJ receives only the current turn.
+4. MJ routing requires a per-turn consent checkbox in the companion UI. The permission is not stored as a standing grant.
 5. The companion runtime has no tool-execution, settings-change, or data-sharing authority.
 6. Any consequential action must be authorized by the independent U1Si-Q integration. A model response is never an authorization token.
-7. Learner communication is accepted as text, speech, sign, AAC, or mixed modality. The interface must not require a learner to normalize their communication.
+7. Learner communication must not be forced into a single modality. The current UI supports keyboard-accessible text; sign, speech, and AAC adapters are not yet integrated.
 8. Do not claim local inference, edge execution, model quality, or learner outcomes until the actual runtime and validation evidence exist.
 
-## Current implementation
+## Implemented in this branch
 
-The new lib/instinctive-core package provides:
+- `lib/instinctive-core`: typed specialist adapter contracts, explicit MJ/Jake/joint routing, owner-and-specialist memory namespaces, consent-gated reads, explicit writes, and no execution authority.
+- `apps/web/app/companion/page.tsx`: companion UI with MJ/Jake/Together selection, frosted multicolor orb, per-turn MJ consent, separate specialist outputs, and a joint synthesis view.
+- `artifacts/api-server/src/companion/routes.ts`: authenticated API proxy for MJ turn and synthesis calls. It rejects non-HTTPS remote origins and does not expose the MJ service URL to the browser.
+- `artifacts/api-server/src/routes/index.ts`: mounts the authenticated companion routes.
+- `app/api/organism/synthesize/route.ts` in the MJ project: separate synthesis endpoint that receives the user's prompt and both specialist outputs.
+- The Myelin landing page links to the companion.
+- The workspace TypeScript project references include the new core package.
 
-- typed MJ and Jake specialist adapter contracts;
-- explicit mode selection (mj, jake, joint);
-- parallel specialist execution in joint mode;
-- owner- and specialist-scoped memory access;
-- consent-gated memory reads and explicit memory writes;
-- a hard no-execution-authority result.
+## Required deployment configuration
 
-The package deliberately does not contain a fabricated MJ model, Jake model, inference provider, database adapter, or UI. Those must be connected to real implementations and tested against real systems.
+On the Myelin API server, set `MJ_ORGANISM_BASE_URL` to the origin of the deployed MJ Organism application, for example `https://your-mj-host.example`. The value must be HTTPS in remote deployments; localhost HTTP is allowed for local development.
 
-## Integration sequence
+The MJ Organism deployment must have its model provider configured using its existing server-side `MODEL_API_KEY`, with optional `MODEL_BASE_URL` and `MODEL_NAME`. Do not expose these values through `NEXT_PUBLIC_*`.
 
-1. Connect the Jake adapter to the existing Primer tutor service without changing its learner-first prompt or authorization rules.
-2. Locate and verify the actual MJ runtime and expose it through the SpecialistAdapter contract. The previous Vercel project is not evidence of a functioning inference path.
-3. Implement a persistent MemoryStore backed by Myelin's existing data layer, with owner and specialist scoping enforced in the database as well as the application.
-4. Add a joint response composer that reconciles outputs without merging specialist memory.
-5. Add a companion UI to apps/web with explicit MJ / Jake / Together selection, accessible modality controls, and visible memory consent.
-6. Integrate U1Si-Q as an independent authorization service. Do not add a local bypass or founder override.
-7. Run real integration tests against configured services and a provisioned test database before describing the integration as tested.
+The companion's status endpoint checks the MJ application and its provider readiness. A configured URL alone is not reported as a ready model.
+
+## Current runtime behavior
+
+- Jake turns use the existing authenticated Myelin session endpoint and its existing Primer provider configuration. They remain stored as Myelin learner-session turns.
+- MJ turns call the existing MJ Organism specialist route.
+- Together mode runs MJ and Jake independently, then sends the two returned assessments to the separate MJ synthesis route.
+- If one specialist fails, the UI preserves the successful specialist's response and does not invent a joint conclusion.
+- MJ's durable learning is not enabled. Jake's existing session persistence remains governed by Myelin.
+- No product action is executed by the companion.
+
+## Not yet verified / release blockers
+
+- This branch has not been installed, typechecked, built, or exercised against live Myelin and MJ deployments in this session.
+- `MJ_ORGANISM_BASE_URL` has not been configured or verified against a deployed MJ host.
+- Existing Myelin authentication, session creation, and Jake provider behavior need real integration verification.
+- The MJ provider may be remote depending on deployment configuration; the consent disclosure is therefore explicit.
+- U1Si-Q is represented as an authority boundary in the UI and documentation, but a production service integration is not part of this change.
+- No Deaf-led review approval has been obtained for release. This work must not be released as a product for Deaf, hard-of-hearing, or neurodivergent users before the charter's independent review gate is implemented and satisfied.
 
 ## Definition of done
 
 - Existing Primer flows still pass their current tests.
-- MJ and Jake each answer through their real provider adapters.
-- Joint mode invokes both real adapters and preserves memory separation.
-- Consent-off mode performs no memory reads or writes.
-- Consent-on mode reads only the requesting owner's namespace.
+- MJ and Jake each answer through their real configured providers.
+- Joint mode invokes both real systems and a separate synthesis pass.
+- Consent-off mode makes no MJ request.
+- Consent-on mode is one-turn only and is not persisted as standing permission.
 - No specialist can execute tools or share data through this package.
 - U1Si-Q independently denies unauthorized actions.
 - Accessibility review is completed before a release intended for Deaf, hard-of-hearing, or neurodivergent users.
