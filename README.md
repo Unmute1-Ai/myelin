@@ -133,9 +133,11 @@ Secrets come from the environment — **never commit values**. `.env` files are 
 
 Real credentials are hashed with the same Argon2id path as production auth, and real secrets stay out of source control.
 
+Never run the seed against a production database — it installs the public-password demo accounts there. It is a manual, development-only step invoked by nothing in the deploy path (see [API → Railway](#api--railway)).
+
 ## Deployment
 
-Two deployment surfaces, two paths. **The API's hosting target is deliberately an open decision** — both options below are documented and neither is committed to.
+Two deployment surfaces, two paths. The web app targets Vercel. The API ships as a portable container image — [railway.json](railway.json) documents its Railway production configuration, and the generic container path below works on any platform.
 
 ### Web app → Vercel (preferred)
 
@@ -159,6 +161,58 @@ docker run --rm -p 8080:8080 \
 ```
 
 The image defaults to `NODE_ENV=production` and `PORT=8080`, runs as an unprivileged user, and exposes a `HEALTHCHECK` against `/api/healthz`. Run schema migrations against the target database before (or alongside) first boot: `pnpm --filter @workspace/db db:migrate` with the production `DATABASE_URL`. Secrets are supplied by the platform's environment — the build context excludes `.env` files by design.
+
+### API → Railway
+
+Railway is the documented production target for the API. The service settings are carried in [railway.json](railway.json): the **Dockerfile** builder pointed at [artifacts/api-server/Dockerfile](artifacts/api-server/Dockerfile) and a healthcheck on `/api/healthz`. The start command is the image's own `CMD` — no override.
+
+> Railway has deprecated config-as-code files (`railway.json` / `railway.toml`): existing services read them until 2026-12-01, and new services cannot opt in. On a new service, set the same values in the dashboard — builder **Dockerfile**, Dockerfile path `artifacts/api-server/Dockerfile`, healthcheck path `/api/healthz`, service **root directory** left at the repo root — or adopt Railway's successor format (`.railway/railway.ts` via `railway config init`). The committed file keeps the contract in review even where it is not read.
+
+1. **Create the project** — railway.com → New Project → Deploy from GitHub repo → select this repository.
+2. **Create the API service** — set the builder to **Dockerfile** with Dockerfile path `artifacts/api-server/Dockerfile`. Keep the service's root directory at the **repo root**: the Dockerfile is a workspace-root build that stitches in `lib/db` and `lib/api-zod` sources.
+3. **Add PostgreSQL** — add the **PostgreSQL** database template from the project canvas (`railway add --database postgres`), then link it: on the API service's Variables tab, add `DATABASE_URL=${{ Postgres.DATABASE_URL }}` (the service name is whatever the database service is called; the dashboard autocompletes it).
+4. **Set the required variables** on the API service (see the production checklist below):
+
+   - `SESSION_SECRET` — freshly generated, ≥32 characters: `openssl rand -hex 32`. One per environment; never reuse across environments, never commit.
+   - `NODE_ENV=production` — secure cookies, JSON logs, and the boot-time encryption verifier.
+   - `PORT` — leave unset. Railway injects the port the app should listen on (the image bakes `PORT=8080` as a fallback, and the process exits at boot without `PORT`). If a healthcheck ever reports `service unavailable`, set `PORT=8080` explicitly per Railway's guidance.
+
+5. **Run migrations** against the production database before (or alongside) first boot. The runtime image ships only the API's production dependency graph — no drizzle-kit, no migration files, no `lib/db` sources — so migrations cannot run as a pre-deploy command inside the container. From a full checkout with `pnpm install --frozen-lockfile` done:
+
+   ```sh
+   railway run pnpm --filter @workspace/db db:migrate     # injects the linked service's DATABASE_URL
+   # or, exporting the value by hand (never commit it):
+   DATABASE_URL='postgres://...' pnpm --filter @workspace/db db:migrate
+   ```
+
+   (`railway run` does not see sealed variables — if you seal `DATABASE_URL`, export it manually instead.)
+
+6. **Generate a public domain** — service Settings → Networking → Public Networking → Generate Domain (HTTPS is automatic). Railway gates traffic switches on the `/api/healthz` healthcheck.
+
+**⚠️ Never seed production.** `pnpm --filter @workspace/db db:seed` deletes existing `@demo.primer` users (and seed-tagged audit rows), then recreates them with the public demo password. The seed has **no in-code environment guard** — it is a manual, development-only step invoked by nothing in the deploy path. Never run `db:seed` with a production `DATABASE_URL`; before any `db:*` command, check the host in the connection string.
+
+**Database TLS caveat.** In production the API requires TLS with certificate verification on the database connection (`lib/db/src/ssl.ts`); a plaintext opt-out (`DATABASE_SSL=false`, `sslmode=disable`) is a deliberate boot-time error. Railway's PostgreSQL template serves **self-signed certificates** (per Railway staff), which certificate-verifying clients reject. Until that changes, point the production `DATABASE_URL` at a Postgres endpoint whose certificate chain Node trusts out of the box (an external managed provider), or make a code decision to relax the TLS posture — a product decision, not a deploy step.
+
+### Production environment checklist
+
+Required vs. optional for a production API deployment. Full reference: [artifacts/api-server/.env.example](artifacts/api-server/.env.example).
+
+| Variable | Required? | Production notes |
+| --- | --- | --- |
+| `DATABASE_URL` | ✅ | PostgreSQL connection string for authenticated routes and the audit log; link the Postgres service's variable (Railway steps above) |
+| `SESSION_SECRET` | ✅ | ≥32 chars (`openssl rand -hex 32`); fresh per environment — it signs session cookies |
+| `PORT` | platform-supplied | Railway injects it (image default `8080`); the process exits at boot without it |
+| `NODE_ENV` | ✅ set to `production` | Secure cookies + JSON logs; arms the boot-time encryption verifier |
+| `TUTOR_PROVIDER` | — | Omit for the `scripted` default: deterministic, no API key. The production default |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` | only when `TUTOR_PROVIDER` selects that provider | Cloud providers are **dev-only** per the 2026-10-30 local-first decision — not a production path |
+| `TUTOR_*_MODEL`, `TUTOR_PROVIDER_TIMEOUT_MS`, `TUTOR_PROVIDER_MAX_RPM` | — | Optional provider tuning; invalid values fall back to defaults |
+| `LOG_LEVEL` | — | pino level, default `info` |
+
+With the scripted default, no provider key is needed — every optional variable can stay unset.
+
+**Secure cookies (`NODE_ENV=production`).** Session cookies are emitted `httpOnly` + `secure` (`artifacts/api-server/src/auth/session.ts`) — browsers reject them over plain HTTP, so logins silently fail if the API is served without HTTPS. Railway's public domains provision HTTPS automatically; keep `NODE_ENV=production` off plain-HTTP local testing.
+
+**Web deploy (`NEXT_PUBLIC_API_BASE_URL`).** The web app inlines the API origin into the client bundle at **build time** — set it in the build environment (e.g. Vercel project settings) *before* the build, and redeploy when it changes. See [apps/web/.env.example](apps/web/.env.example).
 
 ## Verification
 
