@@ -36,6 +36,16 @@ export default function HomePage() {
         </div>
       </Card>
 
+      <Card className="flex flex-col gap-3">
+        <h2 className="text-lg font-bold text-ink">Meet U1 Instinctive Companion</h2>
+        <p className="text-sm text-ink-soft">
+          MJ and Jake can contribute independently, with a separate synthesis step and explicit routing.
+        </p>
+        <LinkButton href="/companion" variant="secondary">
+          Open companion
+        </LinkButton>
+      </Card>
+
       <p className="text-center text-sm text-ink-soft">
         Student, parent, and educator dashboards arrive with the next waves.
       </p>

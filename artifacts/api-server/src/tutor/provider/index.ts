@@ -1,11 +1,11 @@
 // Provider selection: TUTOR_PROVIDER picks the brain; the scripted default
-// needs no key. Cloud providers are development-only per the 2026-10-30
-// local-first decision and throw at selection time when their key is missing
-// — fail loud at startup, never silently downgrade.
+// needs no key. Gemma-local is the intended local-first launch path. Cloud
+// providers remain development-only and fail loud when their key is missing.
 
 import type { TutorProvider } from "../types";
 import { createAnthropicProvider } from "./anthropic";
 import { createGeminiProvider } from "./gemini";
+import { createGemmaLocalProvider } from "./gemma-local";
 import { createOpenAIProvider } from "./openai";
 import { createScriptedProvider } from "./scripted";
 
@@ -18,6 +18,8 @@ export function createProvider(): TutorProvider {
   switch (selected) {
     case "scripted":
       return createScriptedProvider();
+    case "gemma-local":
+      return createGemmaLocalProvider();
     case "anthropic": {
       const key = process.env["ANTHROPIC_API_KEY"];
       if (!key) throw new UnknownProviderError("TUTOR_PROVIDER=anthropic set but ANTHROPIC_API_KEY is missing");
@@ -39,10 +41,9 @@ export function createProvider(): TutorProvider {
 }
 
 /**
- * Every cloud provider whose key is present — dev-only, for the eval harness
- * (a dev with keys gets cross-provider scenario results; CI with no keys gets
- * scripted-only). Never a silent default: the API itself is still selected
- * explicitly via TUTOR_PROVIDER/createProvider.
+ * Every cloud provider whose key is present — dev-only, for the eval harness.
+ * Never a silent default: the API itself is selected explicitly via
+ * TUTOR_PROVIDER/createProvider.
  */
 export function createAvailableCloudProviders(): TutorProvider[] {
   const providers: TutorProvider[] = [];

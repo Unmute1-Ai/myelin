@@ -42,7 +42,7 @@ import { requireAuth, type AuthedRequest } from "../auth/middleware";
 import { defaultAuthDeps, type AuthDeps } from "../auth/deps";
 import { parseBody, parseParams, parseQuery } from "../lib/http";
 import { createAdaptiveProvider, drizzleAdaptiveContextPort } from "../tutor/adaptive/engine";
-import { createScriptedProvider } from "../tutor/provider/scripted";
+import { createProvider } from "../tutor/provider";
 import { ProviderRateLimitError } from "../tutor/provider/errors";
 import { DEMO_LESSON } from "../tutor/lesson/money-math";
 import type { TutorProvider } from "../tutor/types";
@@ -67,7 +67,7 @@ export interface SessionDeps extends AuthDeps {
   authenticate?: RequestHandler;
 }
 
-/** Production wiring: real sessions, drizzle data, the adaptive engine over the scripted default. */
+/** Production wiring: real sessions and adaptive engine over the configured Primer provider. */
 export function defaultSessionDeps(): SessionDeps {
   const auth = defaultAuthDeps();
   return {
@@ -78,7 +78,7 @@ export function defaultSessionDeps(): SessionDeps {
     data: lazyPort(() => drizzleSessionData(auth.db())),
     assessments: lazyPort(() => drizzleAssessmentStore(auth.db())),
     provider: createAdaptiveProvider({
-      base: createScriptedProvider(),
+      base: createProvider(),
       port: drizzleAdaptiveContextPort(auth.db),
     }),
   };
