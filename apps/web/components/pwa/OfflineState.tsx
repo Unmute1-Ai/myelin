@@ -33,7 +33,7 @@ export function OfflineState() {
     >
       <p className="text-base font-bold text-ink">You&apos;re offline</p>
       <p className="mt-1 text-sm font-semibold text-ink-soft">
-        Lessons and learner data need an internet connection. PRIMER won&apos;t show
+        Grace needs an internet connection for conversations. She won&apos;t show
         you stale or made-up progress — reconnect to pick up where you left
         off.
       </p>

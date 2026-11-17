@@ -45,7 +45,7 @@ export function InstallPrompt() {
     setStandalone(standaloneNow());
 
     const onBeforeInstallPrompt = (event: Event) => {
-      // Keep the choice inside PRIMER's own UI instead of the omnibox.
+      // Keep the choice inside Grace's own UI instead of the omnibox.
       event.preventDefault();
       setPromptEvent(event as InstallPromptEvent);
     };
@@ -76,12 +76,12 @@ export function InstallPrompt() {
   if (promptEvent) {
     return (
       <Card className="mx-auto max-w-md text-center">
-        <h2 className="text-lg font-bold text-ink">Take PRIMER everywhere</h2>
+        <h2 className="text-lg font-bold text-ink">Take Grace everywhere</h2>
         <p className="mt-1 text-sm font-semibold text-ink-soft">
-          Install the app on this device for one-tap learning.
+          Install the app on this device for one-tap access to your companion.
         </p>
         <Button className="mt-4 w-full" onClick={() => void install()}>
-          Install PRIMER
+          Install Grace
         </Button>
       </Card>
     );
@@ -90,7 +90,7 @@ export function InstallPrompt() {
   if (iosGuidance) {
     return (
       <Card className="mx-auto max-w-md text-center">
-        <h2 className="text-lg font-bold text-ink">Take PRIMER everywhere</h2>
+        <h2 className="text-lg font-bold text-ink">Take Grace everywhere</h2>
         <p className="mt-1 text-sm font-semibold text-ink-soft">
           On iPhone and iPad: tap the Share button
           {" "}
