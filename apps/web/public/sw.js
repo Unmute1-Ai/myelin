@@ -1,5 +1,5 @@
 /*
- * PRIMER service worker — the offline app shell (spec §6.14).
+ * Grace service worker — the offline app shell (spec §6.14).
  *
  * Honesty rules, in code:
  *  - The shell is cached; learner data is not. Pages are network-first with
@@ -11,9 +11,10 @@
  *  - Bump VERSION whenever the precached shell changes; old caches are
  *    dropped on activation.
  */
-const VERSION = "primer-shell-v1";
+const VERSION = "grace-shell-v2";
 const PRECACHE = [
   "/offline.html",
+  "/icons/grace.svg",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
