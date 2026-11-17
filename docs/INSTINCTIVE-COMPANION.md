@@ -2,7 +2,7 @@
 
 **Implementation status:** The MJ + Jake companion implementation was merged into
 Myelin on 2026-11-05. The Grace interface remake is on
-\`feat/grace-companion-remake\`. Neither change is evidence of a production
+`feat/grace-companion-remake`. Neither change is evidence of a production
 deployment. Live provider integration and release gates remain unverified.
 
 ## Product shape
@@ -43,42 +43,42 @@ Grace is the companion harness and coordination surface:
 
 ## Implemented
 
-- \`lib/instinctive-core\`: typed specialist adapter contracts, explicit
+- `lib/instinctive-core`: typed specialist adapter contracts, explicit
   MJ/Jake/joint routing, owner-and-specialist memory namespaces,
   consent-gated reads, explicit writes, and no execution authority.
-- \`apps/web/app/companion/page.tsx\`: Grace-branded companion UI with
+- `apps/web/app/companion/page.tsx`: Grace-branded companion UI with
   MJ/Jake/Together selection, frosted multicolor orb, fresh per-turn MJ
   consent, separate specialist outputs, provider status, and a joint
   synthesis view.
-- \`artifacts/api-server/src/companion/routes.ts\`: authenticated API proxy
+- `artifacts/api-server/src/companion/routes.ts`: authenticated API proxy
   for MJ turn and synthesis calls. It rejects non-HTTPS remote origins and
   does not expose the MJ service URL to the browser.
-- \`artifacts/api-server/src/routes/index.ts\`: mounts the authenticated
+- `artifacts/api-server/src/routes/index.ts`: mounts the authenticated
   companion routes.
-- \`app/api/organism/synthesize/route.ts\` in the MJ project: separate
+- `app/api/organism/synthesize/route.ts` in the MJ project: separate
   synthesis endpoint that receives the user's prompt and both specialist
   outputs.
 - The Myelin landing page links directly to Grace.
 
 ## Required deployment configuration
 
-The web application uses the Next.js rewrite in \`apps/web/next.config.ts\`.
-Set \`API_PROXY_TARGET\` to the HTTPS origin of the deployed Myelin Express API
-server. This is a server-side value, not a \`NEXT_PUBLIC_*\` browser variable.
+The web application uses the Next.js rewrite in `apps/web/next.config.ts`.
+Set `API_PROXY_TARGET` to the HTTPS origin of the deployed Myelin Express API
+server. This is a server-side value, not a `NEXT_PUBLIC_*` browser variable.
 
-On the Myelin API server, set \`MJ_ORGANISM_BASE_URL\` to the HTTPS origin of
+On the Myelin API server, set `MJ_ORGANISM_BASE_URL` to the HTTPS origin of
 the deployed MJ Organism application.
 
 The MJ Organism deployment must have its model provider configured using its
-existing server-side \`MODEL_API_KEY\`, with optional \`MODEL_BASE_URL\` and
-\`MODEL_NAME\`. For joint synthesis, set \`COMPANION_SHARED_SECRET\` on MJ and
-the identical value as \`MJ_ORGANISM_COMPANION_TOKEN\` on the Myelin API
+existing server-side `MODEL_API_KEY`, with optional `MODEL_BASE_URL` and
+`MODEL_NAME`. For joint synthesis, set `COMPANION_SHARED_SECRET` on MJ and
+the identical value as `MJ_ORGANISM_COMPANION_TOKEN` on the Myelin API
 server. Use a high-entropy random secret. Never expose it through
-\`NEXT_PUBLIC_*\` or commit it to source control.
+`NEXT_PUBLIC_*` or commit it to source control.
 
 The Myelin API server also requires its normal production configuration,
-including \`DATABASE_URL\`, \`SESSION_SECRET\`, \`PORT\`, and
-\`NODE_ENV=production\`. The API image and database migrations must be deployed
+including `DATABASE_URL`, `SESSION_SECRET`, `PORT`, and
+`NODE_ENV=production`. The API image and database migrations must be deployed
 according to the root README. The companion status endpoint checks MJ provider
 readiness; a configured URL alone is not reported as a ready model.
 
