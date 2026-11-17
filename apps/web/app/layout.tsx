@@ -7,18 +7,18 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "PRIMER by Unmute1AI",
-    template: "%s · PRIMER",
+    default: "Grace by Unmute1AI",
+    template: "%s · Grace",
   },
   description:
-    "An adaptive tutoring platform that learns the child first, then teaches the lesson.",
-  applicationName: "PRIMER",
+    "An accessibility-first AI companion built around dignity, autonomy, and user control.",
+  applicationName: "Grace",
   // Installable-app chrome for iOS home-screen launches (spec §6.14);
   // the manifest itself is app/manifest.ts, linked automatically.
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "PRIMER",
+    title: "Grace",
   },
 };
 
