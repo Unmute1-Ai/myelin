@@ -2,9 +2,8 @@ import { Card, LinkButton } from "@/components/ui";
 import { MascotSlot } from "@/components/mascot-slot";
 
 /*
- * Landing shell. The four role-based surfaces (student, parent, educator,
- * admin) arrive with their dashboard waves — this page is the entry point
- * that routes visitors to the auth shells.
+ * Landing shell. The role-based PRIMER surfaces remain unchanged.
+ * Grace is the companion experience that coordinates the MJ and Jake systems.
  */
 export default function HomePage() {
   return (
@@ -37,12 +36,13 @@ export default function HomePage() {
       </Card>
 
       <Card className="flex flex-col gap-3">
-        <h2 className="text-lg font-bold text-ink">Meet U1 Instinctive Companion</h2>
+        <h2 className="text-lg font-bold text-ink">Meet Grace</h2>
         <p className="text-sm text-ink-soft">
-          MJ and Jake can contribute independently, with a separate synthesis step and explicit routing.
+          Grace coordinates MJ's instinctive reasoning and Jake's adaptive
+          interaction. You control what gets shared, one turn at a time.
         </p>
         <LinkButton href="/companion" variant="secondary">
-          Open companion
+          Open Grace
         </LinkButton>
       </Card>
 
