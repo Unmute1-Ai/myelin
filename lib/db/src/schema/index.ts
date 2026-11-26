@@ -6,4 +6,5 @@ export * from "./progress";
 export * from "./accessibility";
 export * from "./audit";
 export * from "./educator";
+export * from "./pilot";
 export * from "./relations";

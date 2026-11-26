@@ -36,34 +36,55 @@ import type { AuthAction } from "../auth/authorize";
 import type { ProposedAction } from "../tutor/types";
 
 /**
+ * Every action that may execute state only through the gate. The tutor's
+ * model-emitted `ProposedAction` union is closed, so those are the only
+ * provider outputs that execute state; `export_pilot_report` is the platform
+ * demo action — a pilot surface exercising the same spine (propose → human
+ * approval → exactly-once execution) without the tutor in the loop.
+ */
+export type GatedAction = ProposedAction | "export_pilot_report";
+
+/**
  * The platform registry of gated actions. Each entry names the authorization
  * action a confirmer must hold on the resource the proposal executes against
  * — the route's `authorize()` call still runs first; this registry is the
  * declaration that the action is model-generated and confirmation-gated.
  */
-export const GATED_ACTIONS: Record<ProposedAction, { confirmAction: AuthAction }> = {
+export const GATED_ACTIONS: Record<GatedAction, { confirmAction: AuthAction }> = {
   advance_step: { confirmAction: "start_session" },
   mark_mastered: { confirmAction: "start_session" },
   assign_practice: { confirmAction: "start_session" },
+  export_pilot_report: { confirmAction: "confirm_gated_action" },
 };
 
 /** A model-generated consequential action, parked until a human decides. */
 export interface PendingProposal {
-  readonly action: ProposedAction;
+  readonly action: GatedAction;
   readonly checkLine: string;
 }
 
 /** Where a proposal parks — pending state, never execution. */
-export interface ProposalPark {
-  park(pending: PendingProposal): Promise<void> | void;
+/**
+ * A parked proposal is just `{ action, checkLine }` as far as the Sentinel
+ * spine is concerned; each surface (tutor sessions, the pilot gate) narrows
+ * `action` to the actions it knows. The generics below keep those narrow
+ * types intact across park and resolve instead of widening to GatedAction
+ * and forcing call sites to cast.
+ */
+export interface ProposalPark<
+  P extends { action: string; checkLine: string } = PendingProposal,
+> {
+  park(pending: P): Promise<void> | void;
 }
 
 /**
  * Atomic consume: read the pending proposal and clear it in one step, so two
  * confirmations can never both execute the same proposal.
  */
-export interface ProposalConsumer {
-  consume(): PendingProposal | null | Promise<PendingProposal | null>;
+export interface ProposalConsumer<
+  P extends { action: string; checkLine: string } = PendingProposal,
+> {
+  consume(): P | null | Promise<P | null>;
 }
 
 export type ProposalResolution<T> =
@@ -72,21 +93,45 @@ export type ProposalResolution<T> =
   | { status: "executed"; result: T };
 
 /**
+ * Audit action names for the three lifecycle steps. The tutor paths keep
+ * their historical names; the pilot demo names its own so the trail says
+ * which surface produced each row.
+ */
+export interface ProposalAuditActions {
+  proposed: string;
+  declined: string;
+  confirmed: string;
+}
+
+export const TUTOR_AUDIT_ACTIONS: ProposalAuditActions = {
+  proposed: "tutor_action_proposed",
+  declined: "tutor_action_declined",
+  confirmed: "tutor_action_confirmed",
+};
+
+export const PILOT_AUDIT_ACTIONS: ProposalAuditActions = {
+  proposed: "pilot_action_proposed",
+  declined: "pilot_action_declined",
+  confirmed: "pilot_action_executed",
+};
+
+/**
  * Park a model-generated proposal. Writes the pending state and the
  * `tutor_action_proposed` audit row — the trail shows every proposal the
  * model made, not just the ones a human answered.
  */
-export async function parkProposal(
-  park: ProposalPark,
-  pending: PendingProposal,
+export async function parkProposal<P extends { action: string; checkLine: string }>(
+  park: ProposalPark<P>,
+  pending: P,
   audit: AuditPort,
   resource: { resourceType: string; resourceId: string | null },
   actorId: string | null,
+  auditActions: ProposalAuditActions = TUTOR_AUDIT_ACTIONS,
 ): Promise<void> {
   await park.park(pending);
   await audit.record({
     actorId,
-    action: "tutor_action_proposed",
+    action: auditActions.proposed,
     resourceType: resource.resourceType,
     resourceId: resource.resourceId,
     decision: "allowed",
@@ -100,14 +145,19 @@ export async function parkProposal(
  * execution. Both outcomes are audit rows; the caller maps the resolution
  * onto its HTTP shape.
  */
-export async function resolveProposal<T>(args: {
-  consumer: ProposalConsumer;
+export async function resolveProposal<
+  P extends { action: string; checkLine: string },
+  T,
+>(args: {
+  consumer: ProposalConsumer<P>;
   accepted: boolean;
   actorId: string | null;
   resource: { resourceType: string; resourceId: string | null };
   audit: AuditPort;
-  execute: (pending: PendingProposal) => Promise<T>;
+  execute: (pending: P) => Promise<T>;
+  auditActions?: ProposalAuditActions;
 }): Promise<ProposalResolution<T>> {
+  const auditActions = args.auditActions ?? TUTOR_AUDIT_ACTIONS;
   const pending = await args.consumer.consume();
   if (pending === null) return { status: "no_pending" };
 
@@ -117,7 +167,7 @@ export async function resolveProposal<T>(args: {
     // proposal cannot be resurrected or executed later.
     await args.audit.record({
       actorId: args.actorId,
-      action: "tutor_action_declined",
+      action: auditActions.declined,
       resourceType: args.resource.resourceType,
       resourceId: args.resource.resourceId,
       decision: "allowed",
@@ -129,7 +179,7 @@ export async function resolveProposal<T>(args: {
   const result = await args.execute(pending);
   await args.audit.record({
     actorId: args.actorId,
-    action: "tutor_action_confirmed",
+    action: auditActions.confirmed,
     resourceType: args.resource.resourceType,
     resourceId: args.resource.resourceId,
     decision: "allowed",

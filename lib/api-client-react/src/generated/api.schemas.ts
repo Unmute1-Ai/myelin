@@ -87,7 +87,7 @@ export interface TutorError {
 }
 
 /**
- * Platform role (spec §5).
+ * Platform role (spec §5). `pilot_participant` is the invite-code pilot role (U1Si-Q work).
  */
 export type UserRole = typeof UserRole[keyof typeof UserRole];
 
@@ -97,6 +97,7 @@ export const UserRole = {
   parent: 'parent',
   educator: 'educator',
   admin: 'admin',
+  pilot_participant: 'pilot_participant',
 } as const;
 
 /**

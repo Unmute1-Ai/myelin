@@ -46,7 +46,7 @@ export function createGemmaLocalProvider(): TutorProvider {
     async *turn(ctx: SessionContext): AsyncIterable<TurnEvent> {
       const model = process.env["GEMMA_LOCAL_MODEL"] ?? DEFAULT_MODEL;
       const apiKey = process.env["GEMMA_LOCAL_API_KEY"];
-      const headers = apiKey ? { authorization: `Bearer ${apiKey}` } : {};
+      const headers: Record<string, string> = apiKey ? { authorization: `Bearer ${apiKey}` } : {};
       const body = {
         model,
         messages: [

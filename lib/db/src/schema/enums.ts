@@ -13,6 +13,7 @@ export const userRole = pgEnum("user_role", [
   "parent",
   "educator",
   "admin",
+  "pilot_participant",
 ]);
 
 /**
@@ -85,4 +86,11 @@ export const textSize = pgEnum("text_size", [
   "medium",
   "large",
   "xlarge",
+]);
+
+/** A generalized Sentinel proposal's lifecycle: parked → decided once. */
+export const pilotProposalStatus = pgEnum("pilot_proposal_status", [
+  "pending",
+  "executed",
+  "declined",
 ]);

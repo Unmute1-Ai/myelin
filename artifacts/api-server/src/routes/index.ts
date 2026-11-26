@@ -9,6 +9,7 @@ import { createAccessibilityRoutes } from "./accessibility";
 import { createSessionRoutes } from "../sessions/routes";
 import { createProgressRoutes } from "./progress";
 import { createParentViewRoutes } from "./parent-views";
+import { createPilotRoutes } from "../pilot/routes";
 import companionRouter from "../companion/routes";
 
 const router: IRouter = Router();
@@ -28,5 +29,7 @@ router.use("/sessions", createSessionRoutes());
 router.use("/companion", companionRouter);
 // Parent dashboard views (spec §6.9) — read-only, consent-gated summaries.
 router.use("/parent", createParentViewRoutes());
+// Pilot enrollment + the generalized Sentinel gate demo (U1Si-Q).
+router.use("/pilot", createPilotRoutes());
 
 export default router;

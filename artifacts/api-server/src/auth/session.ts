@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod/v4";
-import type { UserRole } from "./schemas";
+import { userRoleSchema, type UserRole } from "./schemas";
 
 /**
  * Stateless signed session cookies (HMAC-SHA256 over a JSON payload).
@@ -18,7 +18,9 @@ export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 const claimsSchema = z.object({
   userId: z.uuid(),
-  role: z.enum(["student", "parent", "educator", "admin"]),
+  // Derived from the shared role enum: a new role added to the platform must
+  // be verifiable in session tokens without a second place to update.
+  role: userRoleSchema,
   iat: z.number().int().nonnegative(),
   exp: z.number().int().positive(),
 });
