@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { CreateSessionResponse, PostSessionTurnResponse } from "@workspace/api-zod";
 
@@ -13,12 +14,16 @@ type TurnView = {
   note?: string;
 };
 
-async function readJson(response: Response): Promise<any> {
-  const data = await response.json().catch(() => ({}));
+async function readJson(response: Response): Promise<Record<string, unknown>> {
+  const data = (await response.json().catch(() => ({}))) as Record<string, unknown> | null;
   if (!response.ok) {
-    throw new Error(data?.message || "The request could not be completed.");
+    const message =
+      typeof data?.message === "string"
+        ? data.message
+        : "The request could not be completed.";
+    throw new Error(message);
   }
-  return data;
+  return data ?? {};
 }
 
 async function jakeTurn(input: string, currentSessionId: string | null) {
@@ -288,12 +293,12 @@ export default function CompanionPage() {
       className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-7 px-5 py-8 sm:px-8"
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <a
+        <Link
           href="/"
           className="text-sm font-extrabold tracking-[.18em] text-ink"
         >
           UNMUTE1AI
-        </a>
+        </Link>
         <div className="flex items-center gap-3">
           <span className="rounded-full border border-line bg-white/60 px-3 py-1 text-xs text-ink-soft">
             GRACE · INSTINCTIVE COMPANION
