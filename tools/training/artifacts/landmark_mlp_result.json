@@ -1,0 +1,13 @@
+{
+  "official_split_test_accuracy": 0.8061023354530334,
+  "official_split_train_accuracy": 0.842765748500824,
+  "n_classes": 26,
+  "dataset": "Siruyy/asl-static-landmarks-v1",
+  "snapshot": "a9cea6cf363eb3265ea0e795a1af573105d85f53",
+  "seed": 42,
+  "caveats": [
+    "5080 samples total, single uploader, no signer metadata",
+    "README claims 24 static letters but labels span 0..25 (26 classes)",
+    "features contain extreme outliers; standardized values clipped to [-5, 5]"
+  ]
+}

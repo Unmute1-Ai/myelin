@@ -1,0 +1,10 @@
+train (4064, 86) test (1016, 86) classes 26
+epoch 25 loss 2.2577 test_acc 0.3317 (0s)
+epoch 50 loss 1.4056 test_acc 0.5620 (0s)
+epoch 75 loss 0.9357 test_acc 0.6860 (0s)
+epoch 100 loss 0.7237 test_acc 0.7539 (0s)
+epoch 125 loss 0.6218 test_acc 0.7864 (0s)
+epoch 150 loss 0.5728 test_acc 0.7982 (0s)
+epoch 175 loss 0.5540 test_acc 0.8041 (0s)
+epoch 200 loss 0.5510 test_acc 0.8061 (0s)
+FINAL official-split test accuracy (landmark MLP): 0.8061 (train 0.8428)

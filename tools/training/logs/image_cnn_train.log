@@ -1,0 +1,14 @@
+train (27455, 1, 28, 28) test (7172, 1, 28, 28) classes 24
+epoch  1  loss 2.5984  train_acc 0.4996  test_acc 0.5137  (3s)
+epoch  2  loss 1.0764  train_acc 0.7802  test_acc 0.6949  (5s)
+epoch  3  loss 0.5397  train_acc 0.8767  test_acc 0.7764  (8s)
+epoch  4  loss 0.3180  train_acc 0.9159  test_acc 0.7840  (10s)
+epoch  5  loss 0.2023  train_acc 0.9519  test_acc 0.8211  (13s)
+epoch  6  loss 0.1236  train_acc 0.9851  test_acc 0.8306  (16s)
+epoch  7  loss 0.0772  train_acc 0.9938  test_acc 0.8546  (19s)
+epoch  8  loss 0.0490  train_acc 0.9971  test_acc 0.8631  (22s)
+epoch  9  loss 0.0352  train_acc 0.9986  test_acc 0.8528  (25s)
+epoch 10  loss 0.0227  train_acc 0.9988  test_acc 0.8543  (28s)
+epoch 11  loss 0.0161  train_acc 0.9999  test_acc 0.8629  (31s)
+epoch 12  loss 0.0116  train_acc 0.9995  test_acc 0.8638  (33s)
+FINAL official-split test accuracy: 0.8638
