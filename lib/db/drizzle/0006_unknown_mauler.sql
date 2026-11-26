@@ -1,0 +1,1 @@
+ALTER TABLE "pilot_proposals" ADD COLUMN "consumed_at" timestamp with time zone;

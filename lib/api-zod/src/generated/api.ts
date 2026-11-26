@@ -113,14 +113,14 @@ export const RegisterUserBody = zod.object({
   "email": zod.string().email().max(registerUserBodyEmailMax),
   "password": zod.string().min(registerUserBodyPasswordMin).max(registerUserBodyPasswordMax),
   "displayName": zod.string().min(1).max(registerUserBodyDisplayNameMax),
-  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).')
+  "role": zod.enum(['student', 'parent', 'educator', 'admin', 'pilot_participant']).describe('Platform role (spec §5). `pilot_participant` is the invite-code pilot role (U1Si-Q work).')
 }).describe('Account creation payload (spec §6.1).')
 
 export const RegisterUserResponse = zod.object({
   "user": zod.object({
   "id": zod.string().uuid(),
   "email": zod.string().email(),
-  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).'),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin', 'pilot_participant']).describe('Platform role (spec §5). `pilot_participant` is the invite-code pilot role (U1Si-Q work).'),
   "displayName": zod.string(),
   "createdAt": zod.coerce.date()
 }).describe('Account for any role. Deliberately excludes the password hash and updatedAt.')
@@ -146,7 +146,7 @@ export const LoginUserResponse = zod.object({
   "user": zod.object({
   "id": zod.string().uuid(),
   "email": zod.string().email(),
-  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).'),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin', 'pilot_participant']).describe('Platform role (spec §5). `pilot_participant` is the invite-code pilot role (U1Si-Q work).'),
   "displayName": zod.string(),
   "createdAt": zod.coerce.date()
 }).describe('Account for any role. Deliberately excludes the password hash and updatedAt.')
@@ -168,7 +168,7 @@ export const GetCurrentUserResponse = zod.object({
   "user": zod.object({
   "id": zod.string().uuid(),
   "email": zod.string().email(),
-  "role": zod.enum(['student', 'parent', 'educator', 'admin']).describe('Platform role (spec §5).'),
+  "role": zod.enum(['student', 'parent', 'educator', 'admin', 'pilot_participant']).describe('Platform role (spec §5). `pilot_participant` is the invite-code pilot role (U1Si-Q work).'),
   "displayName": zod.string(),
   "createdAt": zod.coerce.date()
 }).describe('Account for any role. Deliberately excludes the password hash and updatedAt.')

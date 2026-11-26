@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { CreateSessionResponse, PostSessionTurnResponse } from "@workspace/api-zod";
 
@@ -13,10 +14,44 @@ type TurnView = {
   note?: string;
 };
 
-async function readJson(response: Response): Promise<any> {
-  const data = await response.json().catch(() => ({}));
+function extractErrorMessage(data: unknown): string | null {
+  if (typeof data === "object" && data !== null && "message" in data) {
+    const message = (data as { message: unknown }).message;
+    if (typeof message === "string") return message;
+  }
+  return null;
+}
+
+/** Pull a non-empty `answer` string out of an untrusted JSON envelope. */
+function extractAnswer(data: unknown): string | null {
+  if (typeof data === "object" && data !== null && "answer" in data) {
+    const answer = (data as { answer: unknown }).answer;
+    if (typeof answer === "string" && answer.trim()) return answer;
+  }
+  return null;
+}
+
+/** Pull the provider-status fields out of an untrusted JSON envelope. */
+function extractProviderStatus(data: unknown): { mjProviderReady: boolean; jakeProvider: string } {
+  const ready =
+    typeof data === "object" && data !== null && "mjProviderReady" in data
+      ? Boolean((data as { mjProviderReady: unknown }).mjProviderReady)
+      : false;
+  const provider =
+    typeof data === "object" && data !== null && "jakeProvider" in data
+      ? (data as { jakeProvider: unknown }).jakeProvider
+      : undefined;
+  return {
+    mjProviderReady: ready,
+    jakeProvider: typeof provider === "string" ? provider : "unknown",
+  };
+}
+
+async function readJson(response: Response): Promise<unknown> {
+  const data: unknown = await response.json().catch(() => ({}));
+  const message = extractErrorMessage(data);
   if (!response.ok) {
-    throw new Error(data?.message || "The request could not be completed.");
+    throw new Error(message || "The request could not be completed.");
   }
   return data;
 }
@@ -56,20 +91,22 @@ async function jakeTurn(input: string, currentSessionId: string | null) {
 }
 
 async function mjTurn(input: string): Promise<string> {
-  const result = await readJson(
-    await fetch("/api/companion/mj", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ input, consent: true }),
-    }),
+  const mjAnswer = extractAnswer(
+    await readJson(
+      await fetch("/api/companion/mj", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ input, consent: true }),
+      }),
+    ),
   );
 
-  if (typeof result.answer !== "string" || !result.answer.trim()) {
+  if (mjAnswer === null) {
     throw new Error("MJ returned an invalid response.");
   }
 
-  return result.answer;
+  return mjAnswer;
 }
 
 async function jointSynthesis(
@@ -77,25 +114,27 @@ async function jointSynthesis(
   mjAssessment: string,
   jakeAssessment: string,
 ): Promise<string> {
-  const result = await readJson(
-    await fetch("/api/companion/synthesize", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        input,
-        mjAssessment,
-        jakeAssessment,
-        consent: true,
+  const synthesis = extractAnswer(
+    await readJson(
+      await fetch("/api/companion/synthesize", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          input,
+          mjAssessment,
+          jakeAssessment,
+          consent: true,
+        }),
       }),
-    }),
+    ),
   );
 
-  if (typeof result.answer !== "string" || !result.answer.trim()) {
+  if (synthesis === null) {
     throw new Error("The synthesis service returned an invalid response.");
   }
 
-  return result.answer;
+  return synthesis;
 }
 
 function ProviderPill({
@@ -139,10 +178,9 @@ export default function CompanionPage() {
       .then(readJson)
       .then((data) => {
         if (!active) return;
-        setMjConfigured(Boolean(data.mjProviderReady));
-        setJakeProvider(
-          typeof data.jakeProvider === "string" ? data.jakeProvider : "unknown",
-        );
+        const status = extractProviderStatus(data);
+        setMjConfigured(status.mjProviderReady);
+        setJakeProvider(status.jakeProvider);
         setStatusReady(true);
       })
       .catch(() => {
@@ -288,12 +326,12 @@ export default function CompanionPage() {
       className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-7 px-5 py-8 sm:px-8"
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <a
+        <Link
           href="/"
           className="text-sm font-extrabold tracking-[.18em] text-ink"
         >
           UNMUTE1AI
-        </a>
+        </Link>
         <div className="flex items-center gap-3">
           <span className="rounded-full border border-line bg-white/60 px-3 py-1 text-xs text-ink-soft">
             GRACE · INSTINCTIVE COMPANION

@@ -28,7 +28,7 @@ import { lessonProgress } from "../tutor/progress";
 import { buildSessionContext } from "../tutor/session-context";
 import { createProvider } from "../tutor/provider";
 import { ProviderRateLimitError } from "../tutor/provider/errors";
-import type { TurnMessage, TutorProvider } from "../tutor/types";
+import type { ProposedAction, TurnMessage, TutorProvider } from "../tutor/types";
 import { parkProposal, resolveProposal, type PendingProposal } from "../sentinel/sentinel";
 import type { AuditPort } from "../auth/audit";
 import { SessionNotFoundError, SessionStore, type TutorSession } from "../tutor/session-store";
@@ -103,7 +103,9 @@ export function createTutorRoutes(
     // proposal only parks through the Sentinel boundary — never executed.
     let reply: TurnMessage | null = null;
     let spoken = "";
-    let pending: PendingProposal | null = null;
+    // Narrowed to the tutor actions the session actually parks: the Sentinel
+    // spine is generic, so the park port keeps ProposedAction intact.
+    let pending: (PendingProposal & { action: ProposedAction }) | null = null;
 
     const run = async () => {
       const ctx = buildSessionContext(session.history, lesson, body.input, session.id);

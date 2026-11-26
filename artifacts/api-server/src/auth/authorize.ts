@@ -15,12 +15,14 @@ export type AuthAction =
   | "manage_guardian_link"
   | "manage_educator_link"
   | "assign_work"
-  | "configure_supports";
+  | "configure_supports"
+  | "confirm_gated_action";
 
 export type ProtectedResource =
   | { type: "user_data"; userId: string }
   | { type: "guardian_link"; guardianLinkId: string }
-  | { type: "educator_link"; educatorLinkId: string };
+  | { type: "educator_link"; educatorLinkId: string }
+  | { type: "pilot_proposal"; proposalId: string };
 
 export interface PolicyFacts {
   /** The actor is accessing their own record. */
@@ -60,6 +62,18 @@ export function evaluatePolicy(
     // additionally gate on the admin role — defense in depth.
     return action === "manage_educator_link" &&
       (actor.role === "admin" || facts.isEducatorLinkOwner === true)
+      ? "allow"
+      : "deny";
+  }
+
+  // The Sentinel gate: confirming a consequential action is founder-only,
+  // and never the proposer's own call — interpretation is not authorization
+  // (U1Si-Q). This rule must come before the self-record fall-through allow
+  // below, or a proposer could confirm their own proposal.
+  if (action === "confirm_gated_action") {
+    return resource.type === "pilot_proposal" &&
+      actor.role === "admin" &&
+      facts.isSelf === false
       ? "allow"
       : "deny";
   }
@@ -120,6 +134,11 @@ export interface EducatorAccessPort {
   getEducatorLink(linkId: string): Promise<EducatorLinkFacts | undefined>;
 }
 
+export interface PilotProposalAccessPort {
+  /** Who proposed this gated proposal — the party that must not confirm it. */
+  getProposalProposer(proposalId: string): Promise<string | undefined>;
+}
+
 export interface AuthorizeDeps {
   audit: AuditPort;
   guardianAccess: GuardianAccessPort;
@@ -128,6 +147,11 @@ export interface AuthorizeDeps {
    * wire it — omitting it fails closed for educators (no port, no access).
    */
   educatorAccess?: EducatorAccessPort;
+  /**
+   * Optional so routes that never touch pilot proposals need not wire it —
+   * omitting it fails closed (no proposer fact, deny stands).
+   */
+  pilotProposalAccess?: PilotProposalAccessPort;
 }
 
 /**
@@ -159,7 +183,15 @@ export async function authorize(
               (await deps.educatorAccess?.getEducatorLink(resource.educatorLinkId))
                 ?.educatorId === actor.id,
           }
-        : {
+        : resource.type === "pilot_proposal"
+          ? {
+              isSelf:
+                (await deps.pilotProposalAccess?.getProposalProposer(resource.proposalId)) ===
+                actor.id,
+              hasGuardianAccess: false,
+              isLinkOwner: false,
+            }
+          : {
             isSelf: actor.id === resource.userId,
             hasGuardianAccess:
               actor.role === "parent" &&
@@ -182,7 +214,9 @@ export async function authorize(
         ? resource.guardianLinkId
         : resource.type === "educator_link"
           ? resource.educatorLinkId
-          : resource.userId,
+          : resource.type === "pilot_proposal"
+            ? resource.proposalId
+            : resource.userId,
     decision: decision === "allow" ? "allowed" : "denied",
     authorizationEvidence: { role: actor.role, ...facts },
   });

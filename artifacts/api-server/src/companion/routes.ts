@@ -79,7 +79,7 @@ router.get("/status", async (_req: Request, res: Response) => {
   }
   try {
     const upstream = await fetch(new URL("/api/organism/turn", base), { signal: AbortSignal.timeout(5_000) });
-    const data = await upstream.json().catch(() => null);
+    const data = (await upstream.json().catch(() => null)) as { providerConfigured?: unknown } | null;
     res.json({
       mjEndpointConfigured: true,
       mjProviderReady: upstream.ok && data?.providerConfigured === true,

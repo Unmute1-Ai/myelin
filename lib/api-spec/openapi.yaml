@@ -1765,12 +1765,13 @@ components:
       - message
     UserRole:
       type: string
-      description: Platform role (spec §5).
+      description: Platform role (spec §5). `pilot_participant` is the invite-code pilot role (U1Si-Q work).
       enum:
       - student
       - parent
       - educator
       - admin
+      - pilot_participant
     MasteryLevel:
       type: string
       description: What the learner has demonstrated (spec §5, §6.3). Comprehension and above require independent application evidence.

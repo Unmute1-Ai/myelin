@@ -28,6 +28,10 @@ export type ApiErrorCode =
   | "link_not_found"
   | "email_already_registered"
   | "link_revoked"
+  | "invalid_invite"
+  | "invite_expired"
+  | "invite_already_used"
+  | "no_pending_action"
   | "server_error";
 
 /** 4xx/5xx with the platform error shape; never logs payload values. */

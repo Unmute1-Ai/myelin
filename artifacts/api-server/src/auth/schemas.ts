@@ -4,7 +4,13 @@ import type { User } from "@workspace/db/schema";
 /** Role vocabulary is derived from the users table — one source of truth. */
 export type UserRole = User["role"];
 
-export const userRoleSchema = z.enum(["student", "parent", "educator", "admin"]);
+export const userRoleSchema = z.enum([
+  "student",
+  "parent",
+  "educator",
+  "admin",
+  "pilot_participant",
+]);
 
 // ── Requests ────────────────────────────────────────────────────────────────
 
