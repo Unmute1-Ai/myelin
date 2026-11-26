@@ -38,7 +38,7 @@ export default function HomePage() {
       <Card className="flex flex-col gap-3">
         <h2 className="text-lg font-bold text-ink">Meet Grace</h2>
         <p className="text-sm text-ink-soft">
-          Grace coordinates MJ's instinctive reasoning and Jake's adaptive
+          Grace coordinates MJ’s instinctive reasoning and Jake’s adaptive
           interaction. You control what gets shared, one turn at a time.
         </p>
         <LinkButton href="/companion" variant="secondary">
