@@ -28,7 +28,7 @@ export interface HandFrame {
 }
 
 export interface UseHandTrackingOptions {
-  onFrame?: (hands: HandFrame[], detectionMs: number) => void;
+  onFrame?: (hands: HandFrame[], detectionMs: number, video?: HTMLVideoElement) => void;
 }
 
 export interface UseHandTrackingReturn {
@@ -152,7 +152,7 @@ export function useHandTracking(options: UseHandTrackingOptions = {}): UseHandTr
           }
 
           drawLandmarks(hands);
-          onFrameRef.current?.(hands, detectionMs);
+          onFrameRef.current?.(hands, detectionMs, video);
         } catch (inferenceError) {
           // Keep the live camera running if one frame fails.
           console.warn("Hand tracking frame skipped:", inferenceError);

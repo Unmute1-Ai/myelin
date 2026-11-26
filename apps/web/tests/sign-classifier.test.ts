@@ -74,33 +74,34 @@ describe("placeholder classifier", () => {
   it("returns a valid letter and confidence for a straight-finger frame", async () => {
     setLetterClassifierModel(null);
     const features = buildFeatureVector(normalizeFrame(syntheticFrame(Math.PI, 0.05, 0.3)));
-    const prediction = await classifyLetter(features);
+    const prediction = await classifyLetter({ features, image: [] });
     expect(LETTER_LABELS).toContain(prediction.letter);
     expect(prediction.confidence).toBeGreaterThan(0);
     expect(prediction.confidence).toBeLessThanOrEqual(1);
   });
 
   it("uses an injected model instead of the placeholder", async () => {
-    const calls: number[][] = [];
-    setLetterClassifierModel((features) => {
-      calls.push(features);
+    const calls: { features: number[]; image: number[] }[] = [];
+    setLetterClassifierModel((input) => {
+      calls.push(input);
       // Logits favoring "W" (index 21 in LETTER_LABELS).
       return LETTER_LABELS.map((_, i) => (i === 21 ? 10 : 0));
     });
     expect(hasLetterClassifierModel()).toBe(true);
     const features = buildFeatureVector(normalizeFrame(syntheticFrame(Math.PI, 0.05, 0.3)));
-    const prediction = await classifyLetter(features);
+    const prediction = await classifyLetter({ features, image: [1, 2, 3] });
     expect(prediction.letter).toBe("W");
     expect(prediction.confidence).toBeGreaterThan(0.9);
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toHaveLength(FEATURE_DIM);
+    expect(calls[0].features).toHaveLength(FEATURE_DIM);
+    expect(calls[0].image).toEqual([1, 2, 3]);
     setLetterClassifierModel(null);
   });
 
   it("rejects models that return the wrong number of logits", async () => {
     setLetterClassifierModel(() => [1, 2, 3]);
     const features = buildFeatureVector(normalizeFrame(syntheticFrame(Math.PI, 0.05, 0.3)));
-    await expect(classifyLetter(features)).rejects.toThrow(/logits/);
+    await expect(classifyLetter({ features, image: [] })).rejects.toThrow(/logits/);
     setLetterClassifierModel(null);
   });
 
@@ -108,8 +109,8 @@ describe("placeholder classifier", () => {
     setLetterClassifierModel(null);
     const flat = buildFeatureVector(normalizeFrame(syntheticFrame(Math.PI, 0.05, 0.3)));
     const fist = buildFeatureVector(normalizeFrame(syntheticFrame(0.1, 0.05, 0.3)));
-    const flatPrediction = await classifyLetter(flat);
-    const fistPrediction = await classifyLetter(fist);
+    const flatPrediction = await classifyLetter({ features: flat, image: [] });
+    const fistPrediction = await classifyLetter({ features: fist, image: [] });
     // Straight fingers read as an open-hand letter, folded as a fist letter.
     expect(["B", "C", "D", "G", "H", "K", "L", "U", "V", "W", "X", "P", "Q", "R"]).toContain(
       flatPrediction.letter,

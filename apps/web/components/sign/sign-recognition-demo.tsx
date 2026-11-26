@@ -4,13 +4,17 @@
  * Live in-browser sign-recognition demo.
  *
  * Pipeline: webcam → MediaPipe HandLandmarker (in-browser) → landmark
- * normalization → letter classifier (injection point; placeholder until
- * trained weights land) → predicted letter + confidence, with a frame-
- * stability debounce (3 stable frames / 500 ms cooldown).
+ * normalization → trained image CNN (injection point; a landmark-boxed
+ * 28x28 webcam crop feeds the model from tools/training) → predicted
+ * letter + confidence, with a frame-stability debounce (3 stable frames /
+ * 500 ms cooldown).
  *
  * Honesty rules baked in:
- * - The placeholder classifier is labeled as such, everywhere it appears.
- * - No accuracy claim is shown unless it was measured in THIS session on
+ * - The ONLY accuracy figure attributed to the model is its offline
+ *   benchmark (Sign Language MNIST random test split) — labeled as a
+ *   dataset benchmark, not per-signer, not live-webcam accuracy, and kept
+ *   visually separate from the live session metrics.
+ * - No live accuracy is shown unless it was measured in THIS session on
  *   THIS device via the self-verification mode.
  * - Camera frames and landmarks never leave the device; the UI says so.
  */
@@ -18,15 +22,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Card } from "@/components/ui";
 import { useHandTracking } from "@/hooks/use-hand-tracking";
-import {
-  classifyLetter,
-  hasLetterClassifierModel,
-  LETTER_LABELS,
-  type Letter,
-} from "@/lib/sign/classifier";
+import { classifyLetter, LETTER_LABELS, type Letter } from "@/lib/sign/classifier";
 import { buildFeatureVector } from "@/lib/sign/features";
+import { handCropBoxPixels, imageDataToInput } from "@/lib/sign/imageInput";
 import { normalizeFrame, type LandmarkFrame } from "@/lib/sign/landmarks";
 import { createMetricsRecorder, observedAccuracy, type MetricsSnapshot } from "@/lib/sign/metrics";
+import { OFFLINE_BENCHMARK, wireTrainedImageClassifier } from "@/lib/sign/trainedClassifier";
 
 // Frame-stability debounce, ported from the telehealth prior art.
 const STABILITY_THRESHOLD = 3; // consecutive stable frames before confirming
@@ -54,6 +55,10 @@ function formatMs(ms: number | null): string {
 
 export function SignRecognitionDemo() {
   const metrics = useMemo(() => createMetricsRecorder(), []);
+  // Offscreen 28x28 canvas that renders the landmark-boxed webcam crop for
+  // the trained image CNN. Client-only, so it is created lazily.
+  const cropCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [modelStatus, setModelStatus] = useState<"loading" | "ready" | "failed">("loading");
   const [metricsView, setMetricsView] = useState<MetricsSnapshot>({
     framesProcessed: 0,
     medianLatencyMs: null,
@@ -80,6 +85,18 @@ export function SignRecognitionDemo() {
     selfCheckRef.current = selfCheck;
   }, [selfCheck]);
 
+  // Wire the trained image CNN once. If the weights or label order are
+  // broken, fall back to the placeholder and say so — never a silent swap.
+  useEffect(() => {
+    try {
+      wireTrainedImageClassifier();
+      setModelStatus("ready");
+    } catch (wiringError) {
+      console.error("Trained classifier failed to wire in; using placeholder:", wiringError);
+      setModelStatus("failed");
+    }
+  }, []);
+
   // Flush the metrics recorder into React state twice a second instead of
   // on every frame — 30 Hz state updates buy nothing visually.
   useEffect(() => {
@@ -88,7 +105,7 @@ export function SignRecognitionDemo() {
   }, [metrics]);
 
   const handleFrame = useCallback(
-    async (hands: { landmarks: LandmarkFrame }[], detectionMs: number) => {
+    async (hands: { landmarks: LandmarkFrame }[], detectionMs: number, video?: HTMLVideoElement) => {
       const hand = hands[0];
       if (!hand) {
         setCurrentPrediction(null);
@@ -97,7 +114,26 @@ export function SignRecognitionDemo() {
 
       const started = performance.now();
       const features = buildFeatureVector(normalizeFrame(hand.landmarks));
-      const prediction = await classifyLetter(features);
+
+      // Derive the trained CNN's input: a landmark-boxed 28x28 grayscale
+      // crop of the CURRENT video frame. If the video is momentarily
+      // unreadable, classify on features only (placeholder behavior).
+      let image: number[] | null = null;
+      if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+        if (!cropCanvasRef.current) {
+          cropCanvasRef.current = document.createElement("canvas");
+          cropCanvasRef.current.width = 28;
+          cropCanvasRef.current.height = 28;
+        }
+        const cropCtx = cropCanvasRef.current.getContext("2d", { willReadFrequently: true });
+        if (cropCtx) {
+          const box = handCropBoxPixels(hand.landmarks, video.videoWidth, video.videoHeight);
+          cropCtx.drawImage(video, box.sx, box.sy, box.size, box.size, 0, 0, 28, 28);
+          image = imageDataToInput(cropCtx.getImageData(0, 0, 28, 28));
+        }
+      }
+
+      const prediction = await classifyLetter({ features, image: image ?? [] });
       const latencyMs = detectionMs + (performance.now() - started);
       metrics.record(latencyMs);
 
@@ -171,7 +207,7 @@ export function SignRecognitionDemo() {
   }, []);
 
   const accuracy = observedAccuracy(verificationCounts);
-  const isPlaceholder = !hasLetterClassifierModel();
+  const isTrained = modelStatus === "ready";
 
   return (
     <main
@@ -187,17 +223,32 @@ export function SignRecognitionDemo() {
         </p>
         <p
           className={`rounded-2xl border px-4 py-3 text-sm font-bold ${
-            isPlaceholder
-              ? "border-line bg-mascot-soft text-ink"
-              : "border-line bg-primary-soft text-ink"
+            isTrained
+              ? "border-line bg-primary-soft text-ink"
+              : "border-line bg-mascot-soft text-ink"
           }`}
           role="status"
         >
-          {isPlaceholder
-            ? "Placeholder classifier: hand-authored prototype matcher, NOT trained and NOT accurate. Trained weights will replace it via the model injection point. No accuracy is claimed for it."
-            : "Trained classifier model loaded."}
+          {isTrained
+            ? "Trained classifier loaded: an image CNN running on a 28x28 webcam crop of your hand, entirely in this browser."
+            : "Placeholder classifier active (trained model failed to load — see the console for the error). Hand-authored prototype matcher, NOT trained and NOT accurate. No accuracy is claimed for it."}
         </p>
       </header>
+
+      <Card className="flex flex-col gap-2">
+        <h2 className="text-xl font-bold text-ink">Offline benchmark (dataset, not live)</h2>
+        <p className="text-sm font-semibold text-ink">
+          {(OFFLINE_BENCHMARK.accuracy * 100).toFixed(2)}% accuracy on the official RANDOM test
+          split of {OFFLINE_BENCHMARK.dataset} ({OFFLINE_BENCHMARK.testSize.toLocaleString()}{" "}
+          images).
+        </p>
+        <p className="text-sm font-semibold text-ink-soft">
+          This is a dataset benchmark only. It is NOT a per-signer number — the dataset carries no
+          signer metadata — and it is NOT live-webcam accuracy: webcam crops differ from the
+          dataset&apos;s silhouettes in lighting, background, and framing. What this model does on
+          YOUR device is measured only by the self-verification panel below.
+        </p>
+      </Card>
 
       <Card className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
@@ -260,12 +311,19 @@ export function SignRecognitionDemo() {
             <span>Accepted after stability window: {acceptedLetter ?? "—"}</span>
           </div>
         </div>
-        {isPlaceholder ? (
+        {isTrained ? (
           <p className="text-sm font-semibold text-ink-soft">
-            The letter shown comes from the placeholder matcher. It will often be wrong — that is
-            expected until trained weights are injected.
+            The letter comes from the trained image CNN reading the boxed webcam crop. It is right
+            about {Math.round(OFFLINE_BENCHMARK.accuracy * 100)}% of the time on its TEST DATASET —
+            on a live webcam it may do better or worse; measure it with the self-verification panel
+            below.
           </p>
-        ) : null}
+        ) : (
+          <p className="text-sm font-semibold text-ink-soft">
+            The letter shown comes from the placeholder matcher. It will often be wrong — the
+            trained model could not be loaded this session.
+          </p>
+        )}
       </Card>
 
       <Card className="flex flex-col gap-3">

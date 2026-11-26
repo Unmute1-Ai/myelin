@@ -1,13 +1,15 @@
 /*
  * Sign pipeline — stage 3: letter classifier.
  *
- * Takes the 16-dim feature vector from features.ts and returns a letter +
- * a real softmax confidence. Two execution paths:
+ * Takes a per-frame input bundle (16-dim pose features + optional 28x28
+ * image crop) and returns a letter + a real softmax confidence. Two
+ * execution paths:
  *
  *   • If a model is wired via setLetterClassifierModel(predict), use it.
- *     `predict` must accept the 16-dim feature vector and return raw
- *     logits of length LETTER_LABELS.length. This is the injection point
- *     the trained-weights task will use — dropping in a model is one call.
+ *     `predict` receives the full ClassifierInput (a model reads whichever
+ *     modality it was trained on — the trained image CNN reads
+ *     `input.image`) and returns raw logits of length LETTER_LABELS.length.
+ *     This is the injection point — dropping in a model is one call.
  *   • Otherwise, fall back to a transparent, deterministic PLACEHOLDER:
  *     nearest-prototype matching over hand-authored letter shapes. It is
  *     NOT trained and NOT accurate — it responds to actual hand geometry
@@ -31,12 +33,20 @@ export interface LetterPrediction {
   confidence: number; // softmax probability of the picked letter, in [0,1]
 }
 
-export type ClassifierModelPredict = (features: number[]) => number[] | Promise<number[]>;
+export type ClassifierModelPredict = (input: ClassifierInput) => number[] | Promise<number[]>;
+
+/** Everything a wired model may need for one frame. `features` is always
+ *  present (the placeholder and any landmark model read it); `image` is the
+ *  28x28 grayscale crop, filled in only when the video frame is readable. */
+export interface ClassifierInput {
+  features: number[];
+  image: number[];
+}
 
 let modelPredict: ClassifierModelPredict | null = null;
 
 /**
- * Injection point for a real classifier. Pass `predict(features) -> logits`
+ * Injection point for a real classifier. Pass `predict(input) -> logits`
  * (logits must have LETTER_LABELS.length entries, same order). Pass null to
  * restore the built-in placeholder.
  */
@@ -145,11 +155,13 @@ function placeholderLogits(feat: number[]): number[] {
 
 /* ------------------------------------------------------------------------ */
 
-export async function classifyLetter(features: number[]): Promise<LetterPrediction> {
-  if (features.length !== FEATURE_DIM) {
-    throw new Error(`classifyLetter: expected ${FEATURE_DIM} features, got ${features.length}`);
+export async function classifyLetter(input: ClassifierInput): Promise<LetterPrediction> {
+  if (input.features.length !== FEATURE_DIM) {
+    throw new Error(
+      `classifyLetter: expected ${FEATURE_DIM} features, got ${input.features.length}`,
+    );
   }
-  const logits = modelPredict ? await modelPredict(features) : placeholderLogits(features);
+  const logits = modelPredict ? await modelPredict(input) : placeholderLogits(input.features);
   if (logits.length !== LETTER_LABELS.length) {
     throw new Error(
       `classifyLetter: model returned ${logits.length} logits, expected ${LETTER_LABELS.length}`,
