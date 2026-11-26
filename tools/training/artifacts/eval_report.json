@@ -1,0 +1,179 @@
+{
+  "headline": {
+    "metric": "official random split test accuracy (NOT per-signer)",
+    "accuracy": 0.8637757947573899,
+    "n_test": 7172,
+    "per_signer_split": "not computable \u2014 dataset has no signer/session metadata"
+  },
+  "per_letter": {
+    "A": {
+      "n": 331,
+      "correct": 331,
+      "accuracy": 1.0
+    },
+    "B": {
+      "n": 432,
+      "correct": 402,
+      "accuracy": 0.9305555555555556
+    },
+    "C": {
+      "n": 310,
+      "correct": 268,
+      "accuracy": 0.864516129032258
+    },
+    "D": {
+      "n": 245,
+      "correct": 221,
+      "accuracy": 0.9020408163265307
+    },
+    "E": {
+      "n": 498,
+      "correct": 471,
+      "accuracy": 0.9457831325301205
+    },
+    "F": {
+      "n": 247,
+      "correct": 247,
+      "accuracy": 1.0
+    },
+    "G": {
+      "n": 348,
+      "correct": 307,
+      "accuracy": 0.882183908045977
+    },
+    "H": {
+      "n": 436,
+      "correct": 392,
+      "accuracy": 0.8990825688073395
+    },
+    "I": {
+      "n": 288,
+      "correct": 243,
+      "accuracy": 0.84375
+    },
+    "K": {
+      "n": 331,
+      "correct": 280,
+      "accuracy": 0.8459214501510574
+    },
+    "L": {
+      "n": 209,
+      "correct": 209,
+      "accuracy": 1.0
+    },
+    "M": {
+      "n": 394,
+      "correct": 310,
+      "accuracy": 0.7868020304568528
+    },
+    "N": {
+      "n": 291,
+      "correct": 212,
+      "accuracy": 0.7285223367697594
+    },
+    "O": {
+      "n": 246,
+      "correct": 177,
+      "accuracy": 0.7195121951219512
+    },
+    "P": {
+      "n": 347,
+      "correct": 313,
+      "accuracy": 0.9020172910662824
+    },
+    "Q": {
+      "n": 164,
+      "correct": 143,
+      "accuracy": 0.8719512195121951
+    },
+    "R": {
+      "n": 144,
+      "correct": 103,
+      "accuracy": 0.7152777777777778
+    },
+    "S": {
+      "n": 246,
+      "correct": 216,
+      "accuracy": 0.8780487804878049
+    },
+    "T": {
+      "n": 248,
+      "correct": 139,
+      "accuracy": 0.5604838709677419
+    },
+    "U": {
+      "n": 266,
+      "correct": 206,
+      "accuracy": 0.7744360902255639
+    },
+    "V": {
+      "n": 346,
+      "correct": 304,
+      "accuracy": 0.8786127167630058
+    },
+    "W": {
+      "n": 206,
+      "correct": 204,
+      "accuracy": 0.9902912621359223
+    },
+    "X": {
+      "n": 267,
+      "correct": 213,
+      "accuracy": 0.797752808988764
+    },
+    "Y": {
+      "n": 332,
+      "correct": 284,
+      "accuracy": 0.8554216867469879
+    }
+  },
+  "top_confusions": [
+    [
+      "M",
+      "S",
+      44
+    ],
+    [
+      "O",
+      "N",
+      41
+    ],
+    [
+      "V",
+      "W",
+      41
+    ],
+    [
+      "T",
+      "H",
+      40
+    ],
+    [
+      "T",
+      "X",
+      40
+    ],
+    [
+      "U",
+      "R",
+      39
+    ],
+    [
+      "Y",
+      "S",
+      39
+    ],
+    [
+      "G",
+      "P",
+      30
+    ]
+  ],
+  "split_overlap_analysis": {
+    "test_rows": 7172,
+    "exact_duplicates_of_train": 0,
+    "exact_duplicates_with_same_label": 0,
+    "exact_or_1pixel_duplicates_of_train": 0,
+    "exact_or_1pixel_same_label": 0
+  }
+}
