@@ -231,7 +231,9 @@ export function SignRecognitionDemo() {
         >
           {isTrained
             ? "Trained classifier loaded: an image CNN running on a 28x28 webcam crop of your hand, entirely in this browser."
-            : "Placeholder classifier active (trained model failed to load — see the console for the error). Hand-authored prototype matcher, NOT trained and NOT accurate. No accuracy is claimed for it."}
+            : modelStatus === "loading"
+              ? "Loading the trained classifier…"
+              : "Placeholder classifier active (trained model failed to load — see the console for the error). Hand-authored prototype matcher, NOT trained and NOT accurate. No accuracy is claimed for it."}
         </p>
       </header>
 
